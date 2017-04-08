@@ -27,8 +27,7 @@ class HubspotAdminSettings extends FormBase {
 
     $form['settings'] = [
       '#title' => t('Connectivity'),
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
+      '#type' => 'details',
       '#group' => 'additional_settings',
     ];
 
@@ -72,8 +71,7 @@ class HubspotAdminSettings extends FormBase {
 
     $form['debug'] = [
       '#title' => t('Debugging'),
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
+      '#type' => 'details',
       '#group' => 'additional_settings',
     ];
 
@@ -98,8 +96,7 @@ class HubspotAdminSettings extends FormBase {
 
     $form['webforms'] = [
       '#title' => t('Webforms'),
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
+      '#type' => 'details',
       '#group' => 'additional_settings',
       '#description' => 'The following webforms have been detected and can be configured to submit to the HubSpot API.',
       '#tree' => TRUE,
@@ -154,7 +151,7 @@ class HubspotAdminSettings extends FormBase {
           $nid = $node->nid;
           $form['webforms']['nid-' . $nid] = [
             '#title' => $node->title,
-            '#type' => 'fieldset',
+            '#type' => 'details',
           ];
 
           $form['webforms']['nid-' . $nid]['hubspot_form'] = [
@@ -170,7 +167,7 @@ class HubspotAdminSettings extends FormBase {
                 '#title' => t('Field mappings for @field', [
                   '@field' => $value
                   ]),
-                '#type' => 'fieldset',
+                '#type' => 'details',
                 '#states' => [
                   'visible' => [
                     ':input[name="webforms[nid-' . $nid . '][hubspot_form]"]' => [
