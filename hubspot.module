@@ -49,8 +49,12 @@ function hubspot_menu() {
  * Refreshes HubSpot OAuth Access Token when expired.
  */
 function hubspot_oauth_refresh() {
-  $data = array(
-    'refresh_token' => variable_get('hubspot_refresh_token'),
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
+$data = array(
+    'refresh_token' => \Drupal::config('hubspot.settings')->get('hubspot_refresh_token'),
     'client_id' => HUBSPOT_CLIENT_ID,
     'grant_type' => 'refresh_token',
   );
@@ -65,30 +69,38 @@ function hubspot_oauth_refresh() {
     'data' => $data,
   );
 
-  $return = drupal_http_request('https://api.hubapi.com/auth/v1/refresh', $options);
+  // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $return = drupal_http_request('https://api.hubapi.com/auth/v1/refresh', $options);
+
 
   if ($return->code == '200') {
     $return_data = json_decode($return->data, TRUE);
 
     $hubspot_access_token = $return_data['access_token'];
-    variable_set('hubspot_access_token', $hubspot_access_token);
+    \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_access_token', $hubspot_access_token)->save();
 
     $hubspot_refresh_token = $return_data['refresh_token'];
-    variable_set('hubspot_refresh_token', $hubspot_refresh_token);
+    \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
 
     $hubspot_expires_in = $return_data['expires_in'];
-    variable_set('hubspot_expires_in', $hubspot_expires_in);
+    \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', $hubspot_expires_in)->save();
 
     return TRUE;
   }
   else {
     drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
-    watchdog('hubspot', 'Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
+    \Drupal::logger('hubspot')->info('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
       settings page and reconnect to your Hubspot account.', array(
       '%code' => $return->code,
       '%status_message' => $return->status_message,
-    ), WATCHDOG_INFO);
+    ));
 
     return FALSE;
   }
@@ -116,9 +128,12 @@ function hubspot_mail($key, &$message, $params) {
 
   $message['body'][] = t('Error message: @message', array('@message' => $params['errormsg']));
   $message['body'][] = t('HubSpot POST URL: @url', array('@url' => $params['hubspot_url']));
-  $message['body'][] = t('To adjust the debugging settings, visit @url', array(
-    '@url' => url('admin/config/content/hubspot', array('absolute' => TRUE))
-  ));
+  // @FIXME
+// url() expects a route name or an external URI.
+// $message['body'][] = t('To adjust the debugging settings, visit @url', array(
+//     '@url' => url('admin/config/content/hubspot', array('absolute' => TRUE))
+//   ));
+
 }
 
 /**
@@ -130,7 +145,7 @@ function hubspot_mail($key, &$message, $params) {
 function hubspot_page_build(&$page) {
   $page['page_bottom']['hubspot_code'] = array(
     '#type' => 'markup',
-    '#markup' => variable_get('hubspot_log_code', ''),
+    '#markup' => \Drupal::config('hubspot.settings')->get('hubspot_log_code'),
   );
 }
 
@@ -167,7 +182,7 @@ function hubspot_block_view($delta = '') {
 
   switch ($delta) {
     case 'hubspot_recent':
-      if (!user_access('see recent hubspot leads')) {
+      if (!\Drupal::currentUser()->hasPermission('see recent hubspot leads')) {
         return;
       }
       $block['subject'] = t('HubSpot Recent Leads');
@@ -196,10 +211,13 @@ function hubspot_block_view($delta = '') {
       foreach ($leads['Data']->contacts as $lead) {
         foreach ($leads['Data']->contacts as $lead) {
           // Note that $lead->insertedAt is in ms, not seconds, since the epoch.
-          $block['content']['#items'][] = l($lead->properties->firstname->value . ' ' .
-            $lead->properties->lastname->value, $lead->{'profile-url'}) . ' ' . t('(@time ago)', array(
-              '@time' => format_interval(time() - floor($lead->addedAt / 1000))
-            ));
+          // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $block['content']['#items'][] = l($lead->properties->firstname->value . ' ' .
+//             $lead->properties->lastname->value, $lead->{'profile-url'}) . ' ' . t('(@time ago)', array(
+//               '@time' => format_interval(time() - floor($lead->addedAt / 1000))
+//             ));
+
         }
       }
 
@@ -220,19 +238,35 @@ function hubspot_block_view($delta = '') {
  * @return array
  */
 function hubspot_get_recent($n = 5) {
-  $access_token = variable_get('hubspot_access_token', '');
+  $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
   $n = intval($n);
 
   if (empty($access_token)) {
     return array('Error' => t('This site is not connected to a HubSpot Account.'));
   }
 
-  $result = drupal_http_request("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
+  // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $result = drupal_http_request("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
+
   if ($result->code == 401) {
     $refresh = hubspot_oauth_refresh();
     if ($refresh) {
-      $access_token = variable_get('hubspot_access_token', '');
-      $result = drupal_http_request("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
+      $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+      // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $result = drupal_http_request("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
+
     }
   }
 
@@ -263,7 +297,7 @@ function hubspot_webform_submission_insert($node, $submission) {
     return;
   }
 
-  $hubspot_portalid = variable_get('hubspot_portalid', '');
+  $hubspot_portalid = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
   $hubspot_form_guid = db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.nid = :nid", 0, 1, array(
     ':nid' => $node->nid,
   ))->fetchField();
@@ -275,14 +309,17 @@ function hubspot_webform_submission_insert($node, $submission) {
   $fields = array();
 
   // These fields must be submitted with each request.
-  $hs_context = array(
-    'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
-    'ipAddress' => ip_address(),
-    'pageName' => $node->title,
-    'pageUrl' => url('node/' . $node->nid, array('absolute' => TRUE)),
-  );
+  // @FIXME
+// url() expects a route name or an external URI.
+// $hs_context = array(
+//     'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
+//     'ipAddress' => ip_address(),
+//     'pageName' => $node->title,
+//     'pageUrl' => url('node/' . $node->nid, array('absolute' => TRUE)),
+//   );
 
-  $fields['hs_context'] = drupal_json_encode($hs_context);
+
+  $fields['hs_context'] = \Drupal\Component\Serialization\Json::encode($hs_context);
 
   foreach ($node->webform['components'] as $data_id => $data) {
     // Skip if there is no data
@@ -297,7 +334,7 @@ function hubspot_webform_submission_insert($node, $submission) {
 
     $sql = "SELECT hubspot_field FROM {hubspot} h WHERE h.nid = :nid AND h.hubspot_guid = :guid AND h.webform_field = :webform_field";
 
-    if ($data['type'] == 'addressfield' && module_exists('addressfield_tokens')) {
+    if ($data['type'] == 'addressfield' && \Drupal::moduleHandler()->moduleExists('addressfield_tokens')) {
       $addressfield_fields = addressfield_tokens_components();
       $addressfield_data = unserialize($component_data[0]);
 
@@ -344,38 +381,56 @@ function hubspot_webform_submission_insert($node, $submission) {
   $result = hubspot_insert_lead($hubspot_portalid, $hubspot_form_guid, $fields);
 
   if ($result['HTTPCode'] == '204') {
-    watchdog('hubspot', 'Webform "%form" results succesfully submitted to HubSpot. Post: @post - Response: @msg', array(
+    \Drupal::logger('hubspot')->info('Webform "%form" results succesfully submitted to HubSpot. Post: @post - Response: @msg', array(
       '@post' => strip_tags($result['POST']),
       '@msg' => strip_tags($result['Data']),
       '%form' => $node->title,
-    ), WATCHDOG_INFO);
+    ));
   }
   elseif (!empty($result['Error'])) {
-    watchdog('hubspot', 'HTTP error when submitting HubSpot data from Webform "%form": @error', array(
+    \Drupal::logger('hubspot')->error('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
       '@error' => $result['Error'],
       '%form' => $node->title,
-    ), WATCHDOG_ERROR);
+    ));
 
-    if (variable_get('hubspot_debug_on', 0)) {
-      drupal_mail('hubspot', 'http_error', variable_get('hubspot_debug_email', variable_get('site_mail', '')), language_default(), array(
-        'errormsg' => $result['Error'],
-        'hubspot_url' => $hubspot_url,
-        'node_title' => $node->title,
-      ), variable_get('site_mail', ''));
+    if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+      // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// // @FIXME
+// // Could not extract the default value because it is either indeterminate, or
+// // not scalar. You'll need to provide a default value in
+// // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
+// drupal_mail('hubspot', 'http_error', \Drupal::config('hubspot.settings')->get('hubspot_debug_email'), language_default(), array(
+//         'errormsg' => $result['Error'],
+//         'hubspot_url' => $hubspot_url,
+//         'node_title' => $node->title,
+//       ), variable_get('site_mail', ''));
+
     }
   }
   else {
-    watchdog('hubspot', 'HubSpot error when submitting Webform "%form": @error', array(
+    \Drupal::logger('hubspot')->error('HubSpot error when submitting Webform "%form": @error', array(
       '@error' => $result['Data'],
       '%form' => $node->title,
-    ), WATCHDOG_ERROR);
+    ));
 
-    if (variable_get('hubspot_debug_on', 0)) {
-      drupal_mail('hubspot', 'hub_error', variable_get('hubspot_debug_email', variable_get('site_mail', '')), language_default(), array(
-        'errormsg' => $result['Data'],
-        'hubspot_url' => $hubspot_url,
-        'node_title' => $node->title,
-      ), variable_get('site_mail', ''));
+    if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+      // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// // @FIXME
+// // Could not extract the default value because it is either indeterminate, or
+// // not scalar. You'll need to provide a default value in
+// // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
+// drupal_mail('hubspot', 'hub_error', \Drupal::config('hubspot.settings')->get('hubspot_debug_email'), language_default(), array(
+//         'errormsg' => $result['Data'],
+//         'hubspot_url' => $hubspot_url,
+//         'node_title' => $node->title,
+//       ), variable_get('site_mail', ''));
+
     }
   }
 }
@@ -400,13 +455,21 @@ function hubspot_insert_lead($portal_id, $form_guid, $fields) {
   $str_post = drupal_http_build_query($fields);
 
   // Send POST data.
-  $result = drupal_http_request('https://forms.hubspot.com/uploads/form/v2/' . $portal_id . '/' . $form_guid, array(
-    'headers' => array(
-      'Content-Type' => 'application/x-www-form-urlencoded',
-    ),
-    'method' => 'POST',
-    'data' => $str_post,
-  ));
+  // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $result = drupal_http_request('https://forms.hubspot.com/uploads/form/v2/' . $portal_id . '/' . $form_guid, array(
+//     'headers' => array(
+//       'Content-Type' => 'application/x-www-form-urlencoded',
+//     ),
+//     'method' => 'POST',
+//     'data' => $str_post,
+//   ));
+
 
   return array(
     'Data' => isset($result->data) ? $result->data : '',
@@ -460,24 +523,40 @@ function hubspot_help($path, $arg) {
  * Gets the list of forms from HubSpot via the API.
  */
 function _hubspot_get_forms() {
-  $access_token = variable_get('hubspot_access_token', '');
+  $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
   
 
   if (empty($access_token)) {
     return array('error' => t('This site is not connected to a HubSpot Account.'));
   }
 
-  $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
+  // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
+
 
   if ($request->code == 401) {
     $refresh = hubspot_oauth_refresh();
     if ($refresh) {
-      $access_token = variable_get('hubspot_access_token', '');
-      $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
+      $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+      // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
+
     }
   }
 
-  return array('value' => drupal_json_decode($request->data));
+  return array('value' => \Drupal\Component\Serialization\Json::decode($request->data));
 }
 
 /**
