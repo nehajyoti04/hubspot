@@ -10,6 +10,8 @@ namespace Drupal\hubspot\Form;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class HubspotAdminSettings extends FormBase {
 
@@ -46,10 +48,7 @@ class HubspotAdminSettings extends FormBase {
       $form['settings']['hubspot_authentication'] = [
         '#value' => t('Connect Hubspot Account'),
         '#type' => 'submit',
-        '#validate' => [],
-        '#submit' => [
-          'hubspot_oauth_submit'
-          ],
+        '#submit' => array([$this, 'hubspotOauthSubmitForm']),
       ];
 
       if (\Drupal::config('hubspot.settings')->get('hubspot_refresh_token')) {
@@ -107,12 +106,14 @@ class HubspotAdminSettings extends FormBase {
     // // This looks like another module's variable. You'll need to rewrite this call
     // // to ensure that it uses the correct configuration object.
     // $webform_nodes = variable_get('webform_node_types', array('webform'));
+    $webform_nodes = array();
 
     $nodes = [];
 
     $hubspot_forms = _hubspot_get_forms();
     // '<pre>'; print_r("hub spot forms"); print '</pre>';
     // '<pre>'; print_r($hubspot_forms); print '</pre>';exit;
+
 
     if (isset($hubspot_forms['error'])) {
       $form['webforms']['#description'] = $hubspot_forms['error'];
@@ -238,6 +239,46 @@ class HubspotAdminSettings extends FormBase {
     }
 
     drupal_set_message(t('The configuration options have been saved.'));
+  }
+
+  /**
+   * Form submission handler for hubspot_admin_settings().
+   */
+  public function hubspotOauthSubmitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+    $data = array(
+      'client_id' => HUBSPOT_CLIENT_ID,
+      'portalId' => $form_state->getValue('hubspot_portalid'),
+      'redirect_uri' => Url::fromRoute('hubspot.oauth_connect'),
+      'scope' => HUBSPOT_SCOPE,
+    );
+
+//    $redirect_uri = Url::fromRoute('hubspot.oauth_connect', array('absolute' => TRUE))->toString();
+    $redirect_uri = 'http://drupal8/admin/config/services/hubspot';
+    $options = array(
+      'data' => 'client_id=' . HUBSPOT_CLIENT_ID . '&portalId=' . $form_state->getValue('hubspot_portalid') . '&redirect_uri=' . $redirect_uri . '&scope=' . HUBSPOT_SCOPE,
+    );
+
+
+//    $option = [
+//      'query' => [
+//        'client_id' => HUBSPOT_CLIENT_ID,
+//        'portalId' => $form_state->getValue('hubspot_portalid'),
+//        'redirect_uri' => Url::fromRoute('hubspot.oauth_connect'),
+//        'scope' => HUBSPOT_SCOPE
+//      ],
+//    ];
+//    $link = Url::fromUri('https://github.com/login/oauth/authorize', $option);
+
+    $url = 'https://app.hubspot.com/auth/authenticate';
+
+    $redirect_url = $url . $options['data'];
+//    print '<pre>'; print_r("redirect url"); print '</pre>';
+//    print '<pre>'; print_r($redirect_url); print '</pre>';exit;
+    $redirect_url = 'https://app.hubspot.com/auth/authenticate?client_id=734f89bf-1b88-11e1-829a-3b413536dd4c&portalId=3088872&redirect_uri=http%3A//drupal8/hubspot/oauth%3Fdestination%3Dadmin/config/services/hubspot&scope=leads-rw%20contacts-rw%20offline';
+//    $redirect_url = 'https://app.hubspot.com/auth/authorize?code=251e419c-1f98-4d1c-84eb-3b02f0770076&portalId=3088872&offlineAccess=true';
+    $response = new RedirectResponse($redirect_url);
+    $response->send();
+    return $response;
   }
 
 }

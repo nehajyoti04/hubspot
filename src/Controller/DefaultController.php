@@ -6,6 +6,7 @@
 namespace Drupal\hubspot\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Default controller for the hubspot module.
@@ -26,7 +27,10 @@ class DefaultController extends ControllerBase {
       choose the AUTHORIZE option.'), 'error', FALSE);
     }
 
-    drupal_goto();
+    $redirect_url = $this->url('<front>');
+    $response = new RedirectResponse($redirect_url);
+    $response->send();
+    return $response;
   }
 
 }
