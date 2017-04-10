@@ -17,4 +17,13 @@ hubspot.form_settings:
   defaults:
     _title: HubSpot
     _form: \Drupal\hubspot\Form\HubspotFormSettings
-  requirements: {  }
+  requirements:
+    _access: 'TRUE'
+#  options:
+#      parameters:
+#        node:
+#          type: entity:node
+#    ToDO ll be added proper permission later.
+    # Can be accessed by an anonymous user.
+
+#    {  }
