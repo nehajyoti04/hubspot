@@ -135,8 +135,7 @@ class HubspotAdminSettings extends FormBase {
         foreach ($nodes as $node) {
           $nid = $node->nid;
           $form['webforms']['nid-' . $nid] = [
-//            '#title' => $node->title,
-            '#title' => $nid,
+            '#title' => Node::load($nid)->getTitle(),
             '#type' => 'details',
           ];
 

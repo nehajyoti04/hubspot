@@ -35,3 +35,10 @@ http://www.digett.com/
 http://drupal8/admin/structure/webform/manage/test_1/handlers
 Add handler - remote post -
 eg: url https://app.hubspot.com/forms/3088872/994db33e-47c9-419e-8819-d9c801f251c1/edit/
+
+
+Go to admin/structure/webform/manage/ i.e structure => webforms => your webform type (eg: contact)
+=> handler tab
+admin/structure/webform/manage/contact/handlers
+
+add hubspot handler.

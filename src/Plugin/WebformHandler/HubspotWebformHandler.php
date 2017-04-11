@@ -9,13 +9,13 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Drupal\node\Entity\Node;
 use Drupal\webform\WebformHandlerBase;
 use Drupal\webform\WebformSubmissionInterface;
 use Drupal\webform\WebformTokenManagerInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -33,12 +33,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class HubspotWebformHandler extends WebformHandlerBase {
 
-  /**
-   * The module handler.
-   *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-  protected $moduleHandler;
+//  /**
+//   * The module handler.
+//   *
+//   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+//   */
+//  protected $moduleHandler;
 
   /**
    * The HTTP client to fetch the feed data with.
@@ -48,20 +48,18 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected $httpClient;
 
   /**
-   * The token manager.
-   *
-   * @var \Drupal\webform\WebformTranslationManagerInterface
-   */
-  protected $tokenManager;
+//   * The token manager.
+//   *
+//   * @var \Drupal\webform\WebformTranslationManagerInterface
+//   */
+//  protected $tokenManager;
 
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ModuleHandlerInterface $module_handler, ClientInterface $http_client, WebformTokenManagerInterface $token_manager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ClientInterface $http_client) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $logger, $entity_type_manager);
-    $this->moduleHandler = $module_handler;
     $this->httpClient = $http_client;
-    $this->tokenManager = $token_manager;
   }
 
   /**
@@ -74,54 +72,51 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $plugin_definition,
       $container->get('logger.factory')->get('webform.remote_post'),
       $container->get('entity_type.manager'),
-      $container->get('module_handler'),
-      $container->get('http_client'),
-      $container->get('webform.token_manager')
+      $container->get('http_client')
     );
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function getSummary() {
-    $configuration = $this->getConfiguration();
+//  /**
+//   * {@inheritdoc}
+//   */
+//  public function getSummary() {
+//    $configuration = $this->getConfiguration();
+//
+//    // If the saving of results is disabled clear update and delete URL.
+//    if ($this->getWebform()->getSetting('results_disabled')) {
+//      $configuration['settings']['update_url'] = '';
+//      $configuration['settings']['delete_url'] = '';
+//    }
+//
+//    return [
+//      '#settings' => $configuration['settings'],
+//    ] + parent::getSummary();
+//  }
 
-    // If the saving of results is disabled clear update and delete URL.
-    if ($this->getWebform()->getSetting('results_disabled')) {
-      $configuration['settings']['update_url'] = '';
-      $configuration['settings']['delete_url'] = '';
-    }
-
-    return [
-      '#settings' => $configuration['settings'],
-    ] + parent::getSummary();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function defaultConfiguration() {
-    $field_names = array_keys(\Drupal::service('entity_field.manager')->getBaseFieldDefinitions('webform_submission'));
-    $excluded_data = array_combine($field_names, $field_names);
-    return [
-      'type' => 'x-www-form-urlencoded',
-      'insert_url' => '',
-      'update_url' => '',
-      'delete_url' => '',
-      'excluded_data' => $excluded_data,
-      'custom_data' => '',
-      'insert_custom_data' => '',
-      'update_custom_data' => '',
-      'delete_custom_data' => '',
-      'debug' => FALSE,
-    ];
-  }
+//  /**
+//   * {@inheritdoc}
+//   */
+//  public function defaultConfiguration() {
+//    $field_names = array_keys(\Drupal::service('entity_field.manager')->getBaseFieldDefinitions('webform_submission'));
+//    $excluded_data = array_combine($field_names, $field_names);
+//    return [
+//      'type' => 'x-www-form-urlencoded',
+//      'insert_url' => '',
+//      'update_url' => '',
+//      'delete_url' => '',
+//      'excluded_data' => $excluded_data,
+//      'custom_data' => '',
+//      'insert_custom_data' => '',
+//      'update_custom_data' => '',
+//      'delete_custom_data' => '',
+//      'debug' => FALSE,
+//    ];
+//  }
 
   /**
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-
     return $form;
   }
 
@@ -130,7 +125,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::submitConfigurationForm($form, $form_state);
-
 
   }
 
@@ -142,16 +136,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $this->remotePost($operation, $webform_submission);
 
 
-
-
-
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function postDelete(WebformSubmissionInterface $webform_submission) {
-    $this->remotePost('delete', $webform_submission);
   }
 
   /**
@@ -167,11 +151,8 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $request_post_data = $this->getPostData($operation, $webform_submission);
 
     $entity_id = $request_post_data['entity_id'];
-
-//    $hubspot_form_guid = db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.nid = :nid", 0, 1, array(
-//      ':nid' => $node->nid,
-//    ))->fetchField();
-
+    $node = Node::load($entity_id);
+    $node_title = $node->getTitle();
 
     $form_guid =  \Drupal::database()->select('hubspot', 'h')
       ->fields('h', ['hubspot_guid'])
@@ -179,28 +160,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
       ->range(0,1)
       ->execute()->fetchField();
 
-//       print '<pre>'; print_r("form guid"); print '</pre>';
-//    print '<pre>'; print_r($form_guid); print '</pre>';exit;
-
-
-//    $form_guid = '9355b71c-f963-4031-9c3c-4f69fd8f5874';
-//    $form_guid = '994db33e-47c9-419e-8819-d9c801f251c1';
-//    $form_guid = 'decae340-3e0a-4dce-b344-99b5054b7fc8';
-//    $portal_id = '3088872';
-
-
-//    $path = \Drupal::service('path.alias_manager')->getPathByAlias('form/test-1');
-//    print '<pre>'; print_r("path"); print '</pre>';
-//    print '<pre>'; print_r($path); print '</pre>';exit;
-
     $portal_id = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
 
-
     $api = 'https://forms.hubspot.com/uploads/form/v2/' . $portal_id . '/' . $form_guid;
-//
-//    $options = [
-//      'query' => ['firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'],
-//    ];
 
     $options = [
       'query' => $request_post_data,
@@ -208,40 +170,14 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     $url = Url::fromUri($api, $options)->toString();
 
-
-
-//    $client = \Drupal::httpClient();
-//    $request = $client->createRequest('GET', $url);
-//    $request->addHeader(array('Content-Type' => 'application/x-www-form-urlencoded'));
-
-
-
-
-
-
     try {
-//      $response = $client->get($url, [
-//        'headers' => [
-//          'Content-Type' => 'application/x-www-form-urlencoded',
-//        ],
-//      ]);
-//      // Expected result.
-//      // getBody() returns an instance of Psr\Http\Message\StreamInterface.
-//      // @see http://docs.guzzlephp.org/en/latest/psr7.html#body
-//      $data = \Drupal::httpClient()->send($response);
-
-
       $page_url = \Drupal\Core\Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
       $hs_context = array(
         'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
         'ipAddress' => Drupal::request()->getClientIp(),
-        'pageName' => 'testing westing',
+        'pageName' => $node_title,
         'pageUrl' => $page_url,
       );
-
-
-
-//      $fields['hs_context'] = Json::encode($hs_context);
 
 
 //      $request_body = [
@@ -262,61 +198,11 @@ class HubspotWebformHandler extends WebformHandlerBase {
         RequestOptions::BODY => $string,
       ];
       $response = $this->httpClient->request('POST', $url, $request_options);
-//      $this->assertSame(200, $response->getStatusCode());
-//      print '<pre>'; print_r("reponse"); print '</pre>';
-//      print '<pre>'; print_r($response); print '</pre>';exit;
-
-
-//      print '<pre>'; print_r("data"); print '</pre>';
-//      print '<pre>'; print_r($data); print '</pre>';exit;
-
-
-
 
     }
     catch (RequestException $e) {
       watchdog_exception('my_module', $e);
     }
-
-
-//    try {
-//
-//      $response = \Drupal::httpClient()->post($api, $options);
-//      $response = \Drupal::httpClient()->send($response);
-//
-//
-////      $request = \Drupal::httpClient()->createRequest('GET', $url);
-////      $response = \Drupal::httpClient()->send($request);
-//
-//      print '<pre>'; print_r("reponse"); print '</pre>';
-//      print '<pre>'; print_r($response); print '</pre>';exit;
-//
-////      $response = $this->http_client->get($url);
-////      $res = json_decode($response->getBody(), true)['items'][0];
-////      $volume_info = $res['volumeInfo'];
-////      $title = $res['volumeInfo']['title'];
-////      $subtitle = $res['volumeInfo']['subtitle'];
-////      $authors = $res['volumeInfo']['authors'][0];
-////      $publishedDate = $volume_info['publishedDate'];
-////      $description = $volume_info['description'];
-////      $build = [
-////        '#theme' => 'item_list',
-////        '#items' => [
-////          $title,
-////          $subtitle,
-////          $authors,
-////          $publishedDate,
-////          $description
-////        ]
-////      ];
-//
-//    }
-//    catch (RequestException $e) {
-//
-//    }
-
-
-    /** code by JYOti ends */
 
 
 //    print '<pre>'; print_r("request post data"); print '</pre>';
