@@ -56,7 +56,7 @@ function hubspot_oauth_refresh() {
 // Could not extract the default value because it is either indeterminate, or
 // not scalar. You'll need to provide a default value in
 // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
-$data = array(
+  $data = array(
     'refresh_token' => \Drupal::config('hubspot.settings')->get('hubspot_refresh_token'),
     'client_id' => HUBSPOT_CLIENT_ID,
     'grant_type' => 'refresh_token',
@@ -285,16 +285,16 @@ function hubspot_get_recent($n = 5) {
  *
  * Intercepts the WebForm submission and send it off to HubSpot.
  */
-function hubspot_webform_submission_insert($node, $submission) {
+//function hubspot_webform_submission_insert($node, $submission) {
 //  // Get the Webform version
 //  $webform_path = drupal_get_path('module', 'webform') . '/webform.info';
 ////  $webform_info = drupal_parse_info_file($webform_path);
 //
 //  $matches = array();
 //
-//  if (preg_match('/^(\d+\.x-)?(\d+)\..*$/', $webform_info['version'], $matches)) {
-//    $webform_major_version = $matches[2];
-//  }
+////  if (preg_match('/^(\d+\.x-)?(\d+)\..*$/', $webform_info['version'], $matches)) {
+////    $webform_major_version = $matches[2];
+////  }
 //
 //  if ($submission->is_draft == 1) {
 //    return;
@@ -314,15 +314,17 @@ function hubspot_webform_submission_insert($node, $submission) {
 //  // These fields must be submitted with each request.
 //  // @FIXME
 //// url() expects a route name or an external URI.
-//// $hs_context = array(
-////     'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
-////     'ipAddress' => ip_address(),
-////     'pageName' => $node->title,
-////     'pageUrl' => url('node/' . $node->nid, array('absolute' => TRUE)),
-////   );
+//  $page_url = $url = \Drupal\Core\Url::fromUserInput('node/' . $node->nid, array('absolute' => TRUE))->toString();
+// $hs_context = array(
+//     'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
+//     'ipAddress' => Drupal::request()->getClientIp(),
+//     'pageName' => $node->title,
+//     'pageUrl' => $page_url,
+//   );
 //
 //
 //  $fields['hs_context'] = \Drupal\Component\Serialization\Json::encode($hs_context);
+//
 //
 //  foreach ($node->webform['components'] as $data_id => $data) {
 //    // Skip if there is no data
@@ -436,6 +438,176 @@ function hubspot_webform_submission_insert($node, $submission) {
 //
 //    }
 //  }
+//}
+
+
+function hubspotSubmitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+
+  kint("form");
+  kint($form);exit;
+  // Get the Webform version
+  $webform_path = drupal_get_path('module', 'webform') . '/webform.info';
+//  $webform_info = drupal_parse_info_file($webform_path);
+
+  $matches = array();
+
+//  if (preg_match('/^(\d+\.x-)?(\d+)\..*$/', $webform_info['version'], $matches)) {
+//    $webform_major_version = $matches[2];
+//  }
+
+  if ($submission->is_draft == 1) {
+    return;
+  }
+
+  $hubspot_portalid = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
+  $hubspot_form_guid = db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.nid = :nid", 0, 1, array(
+    ':nid' => $node->nid,
+  ))->fetchField();
+
+  if (empty($hubspot_portalid) || empty($hubspot_form_guid)) {
+    return;
+  }
+
+  $fields = array();
+
+  // These fields must be submitted with each request.
+  // @FIXME
+// url() expects a route name or an external URI.
+  $page_url = $url = \Drupal\Core\Url::fromUserInput('node/' . $node->nid, array('absolute' => TRUE))->toString();
+  $hs_context = array(
+    'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
+    'ipAddress' => Drupal::request()->getClientIp(),
+    'pageName' => $node->title,
+    'pageUrl' => $page_url,
+  );
+
+
+  $fields['hs_context'] = \Drupal\Component\Serialization\Json::encode($hs_context);
+
+
+  foreach ($node->webform['components'] as $data_id => $data) {
+    // Skip if there is no data
+    if (!isset($submission->data[$data_id])) {
+      continue;
+    }
+    else {
+      // Get the component value (submission structure differs from Webform 3 and 4).
+      // https://drupal.org/node/1609324#submission-structure
+      $component_data = $webform_major_version <= 3 ? $submission->data[$data_id]['value'] : $submission->data[$data_id];
+    }
+
+    $sql = "SELECT hubspot_field FROM {hubspot} h WHERE h.nid = :nid AND h.hubspot_guid = :guid AND h.webform_field = :webform_field";
+
+    if ($data['type'] == 'addressfield' && \Drupal::moduleHandler()->moduleExists('addressfield_tokens')) {
+      $addressfield_fields = addressfield_tokens_components();
+      $addressfield_data = unserialize($component_data[0]);
+
+      foreach ($addressfield_fields as $addressfield_key => $addressfield_values) {
+        $result = db_query($sql, array(':nid' => $node->nid, ':guid' => $hubspot_form_guid, ':webform_field' => $data['form_key'] . '_' . $addressfield_key))->fetchField();
+
+        $result = db_query_range($sql, 0, 1, array(
+          ':nid' => $node->nid,
+          ':guid' => $hubspot_form_guid,
+          ':webform_field' => $data['form_key'] . '_' . $addressfield_key,
+        ))->fetchField();
+
+        if ($result && $result != '--donotmap--') {
+          $fields[$result] = $addressfield_data[$addressfield_key];
+        }
+      }
+    }
+    else {
+      $result = db_query_range($sql, 0, 1, array(
+        ':nid' => $node->nid,
+        ':guid' => $hubspot_form_guid,
+        ':webform_field' => $data['form_key'],
+      ))->fetchField();
+
+      if ($result && $result != '--donotmap--') {
+        if (count($component_data) > 1) {
+          $fields[$result] = '';
+          foreach ($component_data as $value) {
+            if (!empty($fields[$result])) {
+              $fields[$result] .= ';' . $value;
+            }
+            else {
+              $fields[$result] .= $value;
+            }
+          }
+        }
+        elseif (isset($component_data[0])) {
+          $fields[$result] = $component_data[0];
+        }
+      }
+    }
+
+}
+
+function hubspot_webform_submission_form_alter(array &$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+
+  $form['actions']['submit']['#submit'][] = [$this, 'hubspotSubmitForm'];
+//  kint("form");
+//  kint($form['actions']['submit']['#submit']);
+
+
+
+  }
+
+  $result = hubspot_insert_lead($hubspot_portalid, $hubspot_form_guid, $fields);
+
+  if ($result['HTTPCode'] == '204') {
+    \Drupal::logger('hubspot')->info('Webform "%form" results succesfully submitted to HubSpot. Post: @post - Response: @msg', array(
+      '@post' => strip_tags($result['POST']),
+      '@msg' => strip_tags($result['Data']),
+      '%form' => $node->title,
+    ));
+  }
+  elseif (!empty($result['Error'])) {
+    \Drupal::logger('hubspot')->error('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
+      '@error' => $result['Error'],
+      '%form' => $node->title,
+    ));
+
+    if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+      // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// // @FIXME
+// // Could not extract the default value because it is either indeterminate, or
+// // not scalar. You'll need to provide a default value in
+// // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
+// drupal_mail('hubspot', 'http_error', \Drupal::config('hubspot.settings')->get('hubspot_debug_email'), language_default(), array(
+//         'errormsg' => $result['Error'],
+//         'hubspot_url' => $hubspot_url,
+//         'node_title' => $node->title,
+//       ), variable_get('site_mail', ''));
+
+    }
+  }
+  else {
+    \Drupal::logger('hubspot')->error('HubSpot error when submitting Webform "%form": @error', array(
+      '@error' => $result['Data'],
+      '%form' => $node->title,
+    ));
+
+    if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+      // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// // @FIXME
+// // Could not extract the default value because it is either indeterminate, or
+// // not scalar. You'll need to provide a default value in
+// // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
+// drupal_mail('hubspot', 'hub_error', \Drupal::config('hubspot.settings')->get('hubspot_debug_email'), language_default(), array(
+//         'errormsg' => $result['Data'],
+//         'hubspot_url' => $hubspot_url,
+//         'node_title' => $node->title,
+//       ), variable_get('site_mail', ''));
+
+    }
+  }
 }
 
 /**
@@ -538,4 +710,6 @@ function _hubspot_default_value($nid, $hubspot_guid = NULL, $webform_field = NUL
       ':webform_field' => $webform_field,
     ))->fetchField();
   }
+
+
 }
