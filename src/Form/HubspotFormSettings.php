@@ -43,7 +43,9 @@ class HubspotFormSettings extends FormBase {
   public function buildForm(array $form, \Drupal\Core\Form\FormStateInterface $form_state, $node = NULL) {
     $form = [];
 
-    $hubspot_forms = $this->_hubspot_get_forms();
+    $hubspot_forms = _hubspot_get_forms();
+    kint("hubspot forms");
+    kint($hubspot_forms);
 //    print '<pre>'; print_r("hubspot forms"); print '</pre>';
 //    print '<pre>'; print_r($hubspot_forms); print '</pre>';exit;
 
@@ -192,105 +194,6 @@ class HubspotFormSettings extends FormBase {
     drupal_set_message(t('The configuration options have been saved.'));
   }
 
-  /**
-   * Gets the list of forms from HubSpot via the API.
-   */
-  function _hubspot_get_forms() {
-    $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
 
-//  print '<pre>'; print_r("access token"); print '</pre>';
-//  print '<pre>'; print_r($access_token); print '</pre>';exit;
-
-    if (empty($access_token)) {
-      return array('error' => t('This site is not connected to a HubSpot Account.'));
-    }
-
-    // @FIXME
-// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
-// with Drupal core.
-//
-//
-// @see https://www.drupal.org/node/1862446
-// @see http://docs.guzzlephp.org/en/latest
-// $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
-
-    $api = 'https://api.hubapi.com/contacts/v1/forms';
-    $options = [
-      'query' => ['access_token' => $access_token],
-    ];
-    $url = Url::fromUri($api, $options)->toString();
-    $url = 'https://api.hubapi.com/contacts/v1/forms?access_token=efcdd37d-6b4f-4eb1-8fcd-26eaaa60845e';
-    try {
-//    print '<pre>'; print_r("url"); print '</pre>';
-//    print '<pre>'; print_r($url); print '</pre>';exit;
-
-//      $client = new Client;
-
-//      $response = $client->get($url);
-
-
-      $client = \Drupal::httpClient();
-//      $request = $client->createRequest('GET', $url);
-      $response = \Drupal::httpClient()->get($url);
-
-//      print '<pre>'; print_r("response"); print '</pre>';
-//      print '<pre>'; print_r($request); print '</pre>';exit;
-//
-//    $response = $this->http_client->get($url);
-//    print '<pre>'; print_r("response"); print '</pre>';
-//    print '<pre>'; print_r($response); print '</pre>';exit;
-      $code = $response->getStatusCode();
-
-      $data = (string) $response->getBody();
-      return array('value' => Json::decode($data));
-//      print '<pre>'; print_r("data"); print '</pre>';
-//      print '<pre>'; print_r($data); print '</pre>';exit;
-
-      $res = json_decode($response->getBody(), true)['items'][0];
-      print '<pre>'; print_r("response"); print '</pre>';
-      print '<pre>'; print_r($res); print '</pre>';exit;
-      $volume_info = $res['volumeInfo'];
-      $title = $res['volumeInfo']['title'];
-      $subtitle = $res['volumeInfo']['subtitle'];
-      $authors = $res['volumeInfo']['authors'][0];
-      $publishedDate = $volume_info['publishedDate'];
-      $description = $volume_info['description'];
-      $build = [
-        '#theme' => 'item_list',
-        '#items' => [
-          $title,
-          $subtitle,
-          $authors,
-          $publishedDate,
-          $description
-        ]
-      ];
-
-    }
-    catch (RequestException $e) {
-
-    }
-
-
-
-
-    if ($request->code == 401) {
-      $refresh = hubspot_oauth_refresh();
-      if ($refresh) {
-        $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
-        // @FIXME
-// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
-// with Drupal core.
-//
-//
-// @see https://www.drupal.org/node/1862446
-// @see http://docs.guzzlephp.org/en/latest
-// $request = drupal_http_request("https://api.hubapi.com/contacts/v1/forms?access_token={$access_token}");
-
-      }
-    }
-
-    return array('value' => \Drupal\Component\Serialization\Json::decode($request->data));
-  }
 
 }
