@@ -7,10 +7,14 @@
 
 namespace Drupal\hubspot\Form;
 
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
+use Drupal\node\Entity\Node;
+use Drupal\webform\Entity\Webform;
+use Drupal\webform\Plugin\Field\FieldType\WebformEntityReferenceItem;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class HubspotAdminSettings extends FormBase {
@@ -136,25 +140,40 @@ class HubspotAdminSettings extends FormBase {
           }
         }
 
-        foreach ($webform_nodes as $node_type) {
-          $query = new EntityFieldQuery();
 
-          $query->entityCondition('entity_type', 'node')
-            ->entityCondition('bundle', $node_type)
-            ->propertyCondition('status', 1);
 
-          $result = $query->execute();
+//        $webform = \Drupal::entityTypeManager()->getStorage('node');
+////        print '<pre>'; print_r("webform"); print '</pre>';
+////        print '<pre>'; print_r($webform); print '</pre>';exit;
+//
+//        kint("webform");
+//        kint($webform);
+//
+//        foreach ($webform_nodes as $node_type) {
+//          $query = new EntityFieldQuery();
+//
+//          $query->entityCondition('entity_type', 'node')
+//            ->entityCondition('bundle', $node_type)
+//            ->propertyCondition('status', 1);
+//
+//          $result = $query->execute();
+//
+//          if (isset($result['node'])) {
+//            $node_ids = array_keys($result['node']);
+//            $nodes = array_merge($nodes, \Drupal::entityManager()->getStorage('node'));
+//          }
+//        }
 
-          if (isset($result['node'])) {
-            $node_ids = array_keys($result['node']);
-            $nodes = array_merge($nodes, \Drupal::entityManager()->getStorage('node'));
-          }
-        }
+        $nodes =  \Drupal::database()->select('node', 'n')
+          ->fields('n', ['nid'])
+          ->condition('type', 'webform')
+          ->execute()->fetchAll();
 
         foreach ($nodes as $node) {
           $nid = $node->nid;
           $form['webforms']['nid-' . $nid] = [
-            '#title' => $node->title,
+//            '#title' => $node->title,
+            '#title' => $nid,
             '#type' => 'details',
           ];
 
@@ -181,16 +200,45 @@ class HubspotAdminSettings extends FormBase {
                   ],
               ];
 
-              foreach ($node->webform['components'] as $component) {
-                if ($component['type'] !== 'markup') {
-                  $form['webforms']['nid-' . $nid][$key][$component['form_key']] = [
-                    '#title' => $component['name'] . ' (' . $component['type'] . ')',
+
+
+              $node = Node::load($nid);
+              $webform_field_name = WebformEntityReferenceItem::getEntityWebformFieldName($node);
+              $webform_id = $node->$webform_field_name->target_id;
+
+              $webform = \Drupal::entityTypeManager()->getStorage('webform')->load($webform_id);
+              $webform = $webform->getElementsDecoded();
+
+//              $webform = Webform::load($webform_id);
+//              $webform->
+
+
+//              $webform = \Drupal::entityTypeManager()->getStorage('webform')->load($nid);
+//              $webform = $webform->getElementsDecoded();
+              foreach ($webform as $form_key => $component) {
+//                kint("component");
+//                kint($component);
+                if ($component['#type'] !== 'markup') {
+                  $form['webforms']['nid-' . $nid][$key][$form_key] = [
+                    '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
                     '#type' => 'select',
                     '#options' => $hubspot_field_options[$key]['fields'],
-                    '#default_value' => _hubspot_default_value($nid, $key, $component['form_key']),
+                    '#default_value' => _hubspot_default_value($nid, $key, $form_key),
                   ];
                 }
+
               }
+
+//              foreach ($node->webform['components'] as $component) {
+//                if ($component['type'] !== 'markup') {
+//                  $form['webforms']['nid-' . $nid][$key][$component['form_key']] = [
+//                    '#title' => $component['name'] . ' (' . $component['type'] . ')',
+//                    '#type' => 'select',
+//                    '#options' => $hubspot_field_options[$key]['fields'],
+//                    '#default_value' => _hubspot_default_value($nid, $key, $component['form_key']),
+//                  ];
+//                }
+//              }
             }
           }
         }
