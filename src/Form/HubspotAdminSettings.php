@@ -102,25 +102,11 @@ class HubspotAdminSettings extends FormBase {
       '#description' => 'The following webforms have been detected and can be configured to submit to the HubSpot API.',
       '#tree' => TRUE,
     ];
-
-    // @FIXME
-    // // @FIXME
-    // // This looks like another module's variable. You'll need to rewrite this call
-    // // to ensure that it uses the correct configuration object.
-    // $webform_nodes = variable_get('webform_node_types', array('webform'));
     $webform_nodes = array();
 
     $nodes = [];
 
     $hubspot_forms = _hubspot_get_forms();
-//    kint("hubspot get forms");
-//    kint($hubspot_forms);
-//    kint("values");
-//    kint($hubspot_forms['value']);
-//     '<pre>'; print_r("hub spot forms"); print '</pre>';
-//     '<pre>'; print_r($hubspot_forms['value']); print '</pre>';exit;
-
-
     if (isset($hubspot_forms['error'])) {
       $form['webforms']['#description'] = $hubspot_forms['error'];
     }
@@ -140,29 +126,6 @@ class HubspotAdminSettings extends FormBase {
           }
         }
 
-
-
-//        $webform = \Drupal::entityTypeManager()->getStorage('node');
-////        print '<pre>'; print_r("webform"); print '</pre>';
-////        print '<pre>'; print_r($webform); print '</pre>';exit;
-//
-//        kint("webform");
-//        kint($webform);
-//
-//        foreach ($webform_nodes as $node_type) {
-//          $query = new EntityFieldQuery();
-//
-//          $query->entityCondition('entity_type', 'node')
-//            ->entityCondition('bundle', $node_type)
-//            ->propertyCondition('status', 1);
-//
-//          $result = $query->execute();
-//
-//          if (isset($result['node'])) {
-//            $node_ids = array_keys($result['node']);
-//            $nodes = array_merge($nodes, \Drupal::entityManager()->getStorage('node'));
-//          }
-//        }
 
         $nodes =  \Drupal::database()->select('node', 'n')
           ->fields('n', ['nid'])
@@ -200,8 +163,6 @@ class HubspotAdminSettings extends FormBase {
                   ],
               ];
 
-
-
               $node = Node::load($nid);
               $webform_field_name = WebformEntityReferenceItem::getEntityWebformFieldName($node);
               $webform_id = $node->$webform_field_name->target_id;
@@ -209,15 +170,7 @@ class HubspotAdminSettings extends FormBase {
               $webform = \Drupal::entityTypeManager()->getStorage('webform')->load($webform_id);
               $webform = $webform->getElementsDecoded();
 
-//              $webform = Webform::load($webform_id);
-//              $webform->
-
-
-//              $webform = \Drupal::entityTypeManager()->getStorage('webform')->load($nid);
-//              $webform = $webform->getElementsDecoded();
               foreach ($webform as $form_key => $component) {
-//                kint("component");
-//                kint($component);
                 if ($component['#type'] !== 'markup') {
                   $form['webforms']['nid-' . $nid][$key][$form_key] = [
                     '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
@@ -270,11 +223,19 @@ class HubspotAdminSettings extends FormBase {
 
     $txn = db_transaction();
 
-    // Check if webform values even exist before continuing.
-    if (!$form_state->getValue(['webforms'])) {
-      foreach ($form_state->getValue(['webforms']) as $key => $settings) {
-        db_delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
+//    print "webforms"; print '</pre>';
+//    print '<pre>'; print_r($form_state->getValue('webforms')); print '</pre>';
 
+    // Check if webform values even exist before continuing.
+    if (!$form_state->getValue('webforms')) {
+//      print "inside if webforms"; print '</pre>';exit;
+//      print '<pre>'; print_r($form_state->getValue('webforms')); print '</pre>';
+
+      foreach ($form_state->getValue('webforms') as $key => $settings) {
+        \Drupal::database()->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
+
+//        print '<pre>'; print_r("settings form"); print '</pre>';
+//        print '<pre>'; print_r($settings['hubspot_form']); print '</pre>';exit;
         if ($settings['hubspot_form'] != '--donotmap--') {
           foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
             $fields = [
@@ -283,11 +244,36 @@ class HubspotAdminSettings extends FormBase {
               'webform_field' => $webform_field,
               'hubspot_field' => $hubspot_field,
             ];
-            db_insert('hubspot')->fields($fields)->execute();
+            \Drupal::database()->insert('hubspot')->fields($fields)->execute();
           }
         }
       }
     }
+    else {
+      // Insert entry.
+      // not in D7 version.
+
+      foreach ($form_state->getValue('webforms') as $key => $settings) {
+        \Drupal::database()->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
+
+//        print '<pre>'; print_r("settings form"); print '</pre>';
+//        print '<pre>'; print_r($settings['hubspot_form']); print '</pre>';exit;
+        if ($settings['hubspot_form'] != '--donotmap--') {
+          foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
+            $fields = [
+              'nid' => str_replace('nid-', '', $key),
+              'hubspot_guid' => $settings['hubspot_form'],
+              'webform_field' => $webform_field,
+              'hubspot_field' => $hubspot_field,
+            ];
+            \Drupal::database()->insert('hubspot')->fields($fields)->execute();
+          }
+        }
+      }
+
+
+    }
+
 
     drupal_set_message(t('The configuration options have been saved.'));
   }

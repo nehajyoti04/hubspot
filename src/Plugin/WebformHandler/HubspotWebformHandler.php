@@ -138,25 +138,74 @@ class HubspotWebformHandler extends WebformHandlerBase {
    * {@inheritdoc}
    */
   public function postSave(WebformSubmissionInterface $webform_submission, $update = TRUE) {
-//    $operation = ($update) ? 'update' : 'insert';
-//    $this->remotePost($operation, $webform_submission);
+    $operation = ($update) ? 'update' : 'insert';
+    $this->remotePost($operation, $webform_submission);
 
 
 
-    /** Code by JYoti  */
-//    dpm("inside");
+
+
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function postDelete(WebformSubmissionInterface $webform_submission) {
+    $this->remotePost('delete', $webform_submission);
+  }
+
+  /**
+   * Execute a remote post.
+   *
+   * @param string $operation
+   *   The type of webform submission operation to be posted. Can be 'insert',
+   *   'update', or 'delete'.
+   * @param \Drupal\webform\WebformSubmissionInterface $webform_submission
+   *   The webform submission to be posted.
+   */
+  protected function remotePost($operation, WebformSubmissionInterface $webform_submission) {
+    $request_post_data = $this->getPostData($operation, $webform_submission);
+
+    $entity_id = $request_post_data['entity_id'];
+
+//    $hubspot_form_guid = db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.nid = :nid", 0, 1, array(
+//      ':nid' => $node->nid,
+//    ))->fetchField();
+
+
+    $form_guid =  \Drupal::database()->select('hubspot', 'h')
+      ->fields('h', ['hubspot_guid'])
+      ->condition('nid', $entity_id)
+      ->range(0,1)
+      ->execute()->fetchField();
+
+//       print '<pre>'; print_r("form guid"); print '</pre>';
+//    print '<pre>'; print_r($form_guid); print '</pre>';exit;
+
+
 //    $form_guid = '9355b71c-f963-4031-9c3c-4f69fd8f5874';
-    $form_guid = '994db33e-47c9-419e-8819-d9c801f251c1';
+//    $form_guid = '994db33e-47c9-419e-8819-d9c801f251c1';
 //    $form_guid = 'decae340-3e0a-4dce-b344-99b5054b7fc8';
-    $portal_id = '3088872';
+//    $portal_id = '3088872';
+
+
+//    $path = \Drupal::service('path.alias_manager')->getPathByAlias('form/test-1');
+//    print '<pre>'; print_r("path"); print '</pre>';
+//    print '<pre>'; print_r($path); print '</pre>';exit;
+
+    $portal_id = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
+
+
     $api = 'https://forms.hubspot.com/uploads/form/v2/' . $portal_id . '/' . $form_guid;
+//
 //    $options = [
-//      'query' => ['q' => 'isbn:'. $this->configuration['isbn']],
+//      'query' => ['firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'],
 //    ];
 
     $options = [
-      'query' => ['firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'],
+      'query' => $request_post_data,
     ];
+
     $url = Url::fromUri($api, $options)->toString();
 
 
@@ -182,7 +231,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
 //      $data = \Drupal::httpClient()->send($response);
 
 
-      $page_url = \Drupal\Core\Url::fromUserInput('/node/2', array('absolute' => TRUE))->toString();
+      $page_url = \Drupal\Core\Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
       $hs_context = array(
         'hutk' => isset($_COOKIE['hubspotutk']) ? $_COOKIE['hubspotutk'] : '',
         'ipAddress' => Drupal::request()->getClientIp(),
@@ -195,12 +244,14 @@ class HubspotWebformHandler extends WebformHandlerBase {
 //      $fields['hs_context'] = Json::encode($hs_context);
 
 
-      $request_body = [
-        'hs_context' => Json::encode($hs_context),
-        'firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'
-      ];
+//      $request_body = [
+//        'hs_context' => Json::encode($hs_context),
+//        'firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'
+//      ];
 
-      $fields = ['firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'];
+//      $fields = ['firstname' => 'Jyoti', 'lastname' => 'Bohra', 'email' => 'jyoti@qed42.com'];
+
+      $fields = $request_post_data;
 //      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&firstname=Neha&lastname=Bohra&email=neha.jyoti%40mailinator.com';
 //      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&'. Json::encode($fields);
       $string = 'hs_context=' . Json::encode($hs_context) . '&'. Json::encode($fields);
@@ -267,26 +318,10 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     /** code by JYOti ends */
 
-  }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function postDelete(WebformSubmissionInterface $webform_submission) {
-    $this->remotePost('delete', $webform_submission);
+//    print '<pre>'; print_r("request post data"); print '</pre>';
+//    print '<pre>'; print_r($request_post_data); print '</pre>';exit;
   }
-
-  /**
-   * Execute a remote post.
-   *
-   * @param string $operation
-   *   The type of webform submission operation to be posted. Can be 'insert',
-   *   'update', or 'delete'.
-   * @param \Drupal\webform\WebformSubmissionInterface $webform_submission
-   *   The webform submission to be posted.
-   */
-  protected function remotePost($operation, WebformSubmissionInterface $webform_submission) {
-   }
 
   /**
    * Get a webform submission's post data.
@@ -301,7 +336,31 @@ class HubspotWebformHandler extends WebformHandlerBase {
    *   A webform submission converted to an associative array.
    */
   protected function getPostData($operation, WebformSubmissionInterface $webform_submission) {
+    // Get submission and elements data.
+    $data = $webform_submission->toArray(TRUE);
 
+//    // Flatten data.
+//    // Prioritizing elements before the submissions fields.
+//    $data = $data['data'] + $data;
+//    unset($data['data']);
+//
+//    // Excluded selected submission data.
+//    $data = array_diff_key($data, $this->configuration['excluded_data']);
+//
+//    // Append custom data.
+//    if (!empty($this->configuration['custom_data'])) {
+//      $data = Yaml::decode($this->configuration['custom_data']) + $data;
+//    }
+//
+//    // Append operation data.
+//    if (!empty($this->configuration[$operation . '_custom_data'])) {
+//      $data = Yaml::decode($this->configuration[$operation . '_custom_data']) + $data;
+//    }
+//
+//    // Replace tokens.
+//    $data = $this->tokenManager->replace($data, $webform_submission);
+
+    return $data;
   }
 
 
