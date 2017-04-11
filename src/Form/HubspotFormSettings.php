@@ -7,14 +7,10 @@
 
 namespace Drupal\hubspot\Form;
 
-use Drupal\Component\Serialization\Json;
+
 use Drupal\Core\Form\FormBase;
-use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
-use Drupal\Core\Url;
-use Drupal\node\NodeInterface;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class HubspotFormSettings extends FormBase {
@@ -44,10 +40,6 @@ class HubspotFormSettings extends FormBase {
     $form = [];
 
     $hubspot_forms = _hubspot_get_forms();
-    kint("hubspot forms");
-    kint($hubspot_forms);
-//    print '<pre>'; print_r("hubspot forms"); print '</pre>';
-//    print '<pre>'; print_r($hubspot_forms); print '</pre>';exit;
 
     if (isset($hubspot_forms['error'])) {
       $form['webforms']['#description'] = $hubspot_forms['error'];
@@ -59,8 +51,6 @@ class HubspotFormSettings extends FormBase {
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
         $hubspot_field_options = [];
-//        kint("values");
-//        kint($hubspot_forms['value']);
         foreach ($hubspot_forms['value'] as $hubspot_form) {
           $hubspot_form_options[$hubspot_form['guid']] = $hubspot_form['name'];
           $hubspot_field_options[$hubspot_form['guid']]['fields']['--donotmap--'] = "Do Not Map";
@@ -70,13 +60,7 @@ class HubspotFormSettings extends FormBase {
           }
         }
 
-
-//        $nid = $node->nid->value;
         $nid = $node;
-//        kint($node);
-
-
-
         $form['nid'] = [
           '#type' => 'hidden',
           '#value' => $nid,
@@ -90,8 +74,6 @@ class HubspotFormSettings extends FormBase {
         ];
 
         foreach ($hubspot_form_options as $key => $value) {
-//          dpm("value");
-//          dpm($value);
           if ($key != '--donotmap--') {
             $form[$key] = [
               '#title' => t('Field mappings for @field', array(
@@ -103,39 +85,17 @@ class HubspotFormSettings extends FormBase {
                 'visible' => [
                   ':input[name="hubspot_form"]' => [
                     'value' => $key
-                    ]
                   ]
-                ],
+                ]
+              ],
             ];
 
             $webform = \Drupal::entityTypeManager()->getStorage('webform')->load('test_1');
-//            $webform = $webform->getSubmissionForm();
             $webform = $webform->getElementsDecoded();
 
             $submission_storage = \Drupal::entityTypeManager()->getStorage('webform_submission');
-            $field_definitions = $submission_storage->getFieldDefinitions();
-//            kint("webform");
-//            kint($webform);
-
-
-
-//            print '<pre>'; print_r("node"); print '</pre>';
-//            print '<pre>'; print_r($webform); print '</pre>';exit;
-
-//            print '<pre>'; print_r("node"); print '</pre>';
-//    print '<pre>'; print_r($node->webform); print '</pre>';exit;
 
             foreach ($webform as $form_key => $component) {
-//              dpm("component type");
-//              dpm($component['#type']);
-//              dpm("form key");
-//              dpm($form_key);
-//              dpm("key");
-//              dpm($key);
-
-
-//              kint("component");
-//              kint($component);
               if ($component['#type'] == 'addressfield' && \Drupal::moduleHandler()->moduleExists('addressfield_tokens')) {
                 $addressfield_fields = addressfield_tokens_components();
 
@@ -169,15 +129,13 @@ class HubspotFormSettings extends FormBase {
       '#value' => ('Save Configuration'),
     ];
 
-//    return parent::buildForm($form, $form_state);
-
     return $form;
   }
 
   public function submitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
     $txn = db_transaction();
 
-    db_delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
+    \Drupal::database()->delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
 
     if ($form_state->getValue(['hubspot_form']) != '--donotmap--') {
       foreach ($form_state->getValue([$form_state->getValue('hubspot_form')]) as $webform_field => $hubspot_field) {
@@ -187,13 +145,11 @@ class HubspotFormSettings extends FormBase {
           'webform_field' => $webform_field,
           'hubspot_field' => $hubspot_field,
         ];
-        db_insert('hubspot')->fields($fields)->execute();
+        \Drupal::database()->insert('hubspot')->fields($fields)->execute();
       }
     }
 
     drupal_set_message(t('The configuration options have been saved.'));
   }
-
-
 
 }

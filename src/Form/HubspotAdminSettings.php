@@ -7,13 +7,10 @@
 
 namespace Drupal\hubspot\Form;
 
-use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\FormBase;
-use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\node\Entity\Node;
-use Drupal\webform\Entity\Webform;
 use Drupal\webform\Plugin\Field\FieldType\WebformEntityReferenceItem;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -151,15 +148,15 @@ class HubspotAdminSettings extends FormBase {
               $form['webforms']['nid-' . $nid][$key] = [
                 '#title' => t('Field mappings for @field', [
                   '@field' => $value
-                  ]),
+                ]),
                 '#type' => 'details',
                 '#states' => [
                   'visible' => [
                     ':input[name="webforms[nid-' . $nid . '][hubspot_form]"]' => [
                       'value' => $key
-                      ]
                     ]
-                  ],
+                  ]
+                ],
               ];
 
               $node = Node::load($nid);
@@ -181,16 +178,6 @@ class HubspotAdminSettings extends FormBase {
 
               }
 
-//              foreach ($node->webform['components'] as $component) {
-//                if ($component['type'] !== 'markup') {
-//                  $form['webforms']['nid-' . $nid][$key][$component['form_key']] = [
-//                    '#title' => $component['name'] . ' (' . $component['type'] . ')',
-//                    '#type' => 'select',
-//                    '#options' => $hubspot_field_options[$key]['fields'],
-//                    '#default_value' => _hubspot_default_value($nid, $key, $component['form_key']),
-//                  ];
-//                }
-//              }
             }
           }
         }
@@ -207,7 +194,7 @@ class HubspotAdminSettings extends FormBase {
 
   public function validateForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
     if ($form_state->getValue(['hubspot_debug_on']) && !valid_email_address($form_state->getValue([
-      'hubspot_debug_email'
+        'hubspot_debug_email'
       ]))) {
       $form_state->setErrorByName('hubspot_debug_email', t('You must provide a valid email address.'));
     }
@@ -222,19 +209,13 @@ class HubspotAdminSettings extends FormBase {
 
     $txn = db_transaction();
 
-//    print "webforms"; print '</pre>';
-//    print '<pre>'; print_r($form_state->getValue('webforms')); print '</pre>';
-
     // Check if webform values even exist before continuing.
     if (!$form_state->getValue('webforms')) {
-//      print "inside if webforms"; print '</pre>';exit;
-//      print '<pre>'; print_r($form_state->getValue('webforms')); print '</pre>';
+
 
       foreach ($form_state->getValue('webforms') as $key => $settings) {
         \Drupal::database()->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
 
-//        print '<pre>'; print_r("settings form"); print '</pre>';
-//        print '<pre>'; print_r($settings['hubspot_form']); print '</pre>';exit;
         if ($settings['hubspot_form'] != '--donotmap--') {
           foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
             $fields = [
@@ -250,13 +231,9 @@ class HubspotAdminSettings extends FormBase {
     }
     else {
       // Insert entry.
-      // not in D7 version.
 
       foreach ($form_state->getValue('webforms') as $key => $settings) {
         \Drupal::database()->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
-
-//        print '<pre>'; print_r("settings form"); print '</pre>';
-//        print '<pre>'; print_r($settings['hubspot_form']); print '</pre>';exit;
         if ($settings['hubspot_form'] != '--donotmap--') {
           foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
             $fields = [
@@ -281,77 +258,18 @@ class HubspotAdminSettings extends FormBase {
    * Form submission handler for hubspot_admin_settings().
    */
   public function hubspotOauthSubmitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
-  global $base_url;
+    global $base_url;
     $options = array(
       'query' => [
-      'client_id' => HUBSPOT_CLIENT_ID,
-//        'client_id' => '734f89bf-1b88-11e1-829a-3b413536dd4c',
-//      'portalId' => $form_state->getValue('hubspot_portalid'),
-        'portalId' => '3088872',
-      'redirect_uri' => $base_url . Url::fromRoute('hubspot.oauth_connect')->toString(),
-//        'redirect_uri' => 'http%3A//drupal8/hubspot/oauth%3Fdestination%3Dadmin/config/services/hubspot',
-      'scope' => HUBSPOT_SCOPE,
-//        'scope' => 'leads-rw%20contacts-rw%20offline',
-        ]
-    );
-//    kint("redirect");
-//    kint(Url::fromRoute('hubspot.oauth_connect')); exit;
-
-//    $redirect_uri = Url::fromRoute('hubspot.oauth_connect')->toString();
-//
-//    kint("redirect");
-//    kint($redirect_uri); exit;
-//
-//
-//    $redirect_uri = 'http://drupal8/admin/config/services/hubspot';
-
-//    $options = array(
-//      'data' => 'client_id=' . HUBSPOT_CLIENT_ID . '&portalId=' . $form_state->getValue('hubspot_portalid') . '&redirect_uri=' . $redirect_uri . '&scope=' . HUBSPOT_SCOPE,
-//    );
-
-
-//    $option = [
-//      'query' => [
-//        'client_id' => HUBSPOT_CLIENT_ID,
-//        'portalId' => $form_state->getValue('hubspot_portalid'),
-//        'redirect_uri' => Url::fromRoute('hubspot.oauth_connect'),
-//        'scope' => HUBSPOT_SCOPE
-//      ],
-//    ];
-//    $link = Url::fromUri('https://github.com/login/oauth/authorize', $option);
-
-    $url = 'https://app.hubspot.com/auth/authenticate';
-
-//    $redirect_url = $url . $options['data'];
-//    print '<pre>'; print_r("redirect url"); print '</pre>';
-//    print '<pre>'; print_r($redirect_url); print '</pre>';exit;
-
-
-
-//    $data = array(
-//      'client_id' => HUBSPOT_CLIENT_ID,
-//      'portalId' => $form_state['values']['hubspot_portalid'],
-//      'redirect_uri' => url('hubspot/oauth', array('query' => drupal_get_destination(), 'absolute' => TRUE)),
-//      'scope' => HUBSPOT_SCOPE,
-//    );
-
-//    $options = [
-//      'query' => [
-//        'client_id' => '734f89bf-1b88-11e1-829a-3b413536dd4c',
+        'client_id' => HUBSPOT_CLIENT_ID,
 //        'portalId' => '3088872',
-//        'redirect_uri' => 'http://drupal8/hubspot/oauth%3Fdestination%3Dadmin/config/services/hubspot',
-//        'scope' => 'leads-rw%20contacts-rw%20offline',
-//      ],
-//    ];
-//    $url = Url::fromUri($api, $options)->toString();
-
+        'portalId' => \Drupal::config('hubspot.settings')->get('hubspot_portalid'),
+        'redirect_uri' => $base_url . Url::fromRoute('hubspot.oauth_connect')->toString(),
+        'scope' => HUBSPOT_SCOPE,
+      ]
+    );
     $redirect_url = Url::fromUri('https://app.hubspot.com/auth/authenticate', $options)->toString();
 
-
-
-//    $redirect_url = 'https://app.hubspot.com/auth/authenticate?client_id=734f89bf-1b88-11e1-829a-3b413536dd4c&portalId=3088872&redirect_uri=http%3A//drupal8/hubspot/oauth%3Fdestination%3Dadmin/config/services/hubspot&scope=leads-rw%20contacts-rw%20offline';
-//    kint("redirect url");
-//    kint($redirect_url);exit;
     $response = new RedirectResponse($redirect_url);
     $response->send();
     return $response;
@@ -363,14 +281,7 @@ class HubspotAdminSettings extends FormBase {
    * Deletes Hubspot OAuth tokens.
    */
   public function hubspotOauthDisconnect(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
-//    \Drupal::state()->delete('hubspot.settings');
     \Drupal::configFactory()->getEditable('hubspot.settings')->clear('hubspot_refresh_token')->save();
-//    \Drupal::state()->delete('hubspot_refresh_token');
-
-//    print 'Hello'; exit;
-//    variable_del('hubspot_access_token');
-//    variable_del('hubspot_refresh_token');
-//    variable_del('hubspot_expires_in');
   }
 
 }

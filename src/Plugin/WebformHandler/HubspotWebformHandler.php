@@ -4,15 +4,12 @@ namespace Drupal\hubspot\Plugin\WebformHandler;
 
 use Drupal;
 use Drupal\Component\Serialization\Json;
-use Drupal\Core\Serialization\Yaml;
-use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\node\Entity\Node;
 use Drupal\webform\WebformHandlerBase;
 use Drupal\webform\WebformSubmissionInterface;
-use Drupal\webform\WebformTokenManagerInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
@@ -33,26 +30,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class HubspotWebformHandler extends WebformHandlerBase {
 
-//  /**
-//   * The module handler.
-//   *
-//   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-//   */
-//  protected $moduleHandler;
-
   /**
    * The HTTP client to fetch the feed data with.
    *
    * @var \GuzzleHttp\ClientInterface
    */
   protected $httpClient;
-
-  /**
-//   * The token manager.
-//   *
-//   * @var \Drupal\webform\WebformTranslationManagerInterface
-//   */
-//  protected $tokenManager;
 
   /**
    * {@inheritdoc}
@@ -75,43 +58,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $container->get('http_client')
     );
   }
-
-//  /**
-//   * {@inheritdoc}
-//   */
-//  public function getSummary() {
-//    $configuration = $this->getConfiguration();
-//
-//    // If the saving of results is disabled clear update and delete URL.
-//    if ($this->getWebform()->getSetting('results_disabled')) {
-//      $configuration['settings']['update_url'] = '';
-//      $configuration['settings']['delete_url'] = '';
-//    }
-//
-//    return [
-//      '#settings' => $configuration['settings'],
-//    ] + parent::getSummary();
-//  }
-
-//  /**
-//   * {@inheritdoc}
-//   */
-//  public function defaultConfiguration() {
-//    $field_names = array_keys(\Drupal::service('entity_field.manager')->getBaseFieldDefinitions('webform_submission'));
-//    $excluded_data = array_combine($field_names, $field_names);
-//    return [
-//      'type' => 'x-www-form-urlencoded',
-//      'insert_url' => '',
-//      'update_url' => '',
-//      'delete_url' => '',
-//      'excluded_data' => $excluded_data,
-//      'custom_data' => '',
-//      'insert_custom_data' => '',
-//      'update_custom_data' => '',
-//      'delete_custom_data' => '',
-//      'debug' => FALSE,
-//    ];
-//  }
 
   /**
    * {@inheritdoc}
@@ -224,31 +170,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected function getPostData($operation, WebformSubmissionInterface $webform_submission) {
     // Get submission and elements data.
     $data = $webform_submission->toArray(TRUE);
-
-//    // Flatten data.
-//    // Prioritizing elements before the submissions fields.
-//    $data = $data['data'] + $data;
-//    unset($data['data']);
-//
-//    // Excluded selected submission data.
-//    $data = array_diff_key($data, $this->configuration['excluded_data']);
-//
-//    // Append custom data.
-//    if (!empty($this->configuration['custom_data'])) {
-//      $data = Yaml::decode($this->configuration['custom_data']) + $data;
-//    }
-//
-//    // Append operation data.
-//    if (!empty($this->configuration[$operation . '_custom_data'])) {
-//      $data = Yaml::decode($this->configuration[$operation . '_custom_data']) + $data;
-//    }
-//
-//    // Replace tokens.
-//    $data = $this->tokenManager->replace($data, $webform_submission);
-
     return $data;
   }
-
-
 
 }

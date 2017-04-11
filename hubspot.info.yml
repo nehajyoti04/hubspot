@@ -3,5 +3,4 @@ description: 'Provides HubSpot leads API integration with Drupal. Works with Hub
 core: 8.x
 dependencies:
   - webform
-  - libraries
 type: module
