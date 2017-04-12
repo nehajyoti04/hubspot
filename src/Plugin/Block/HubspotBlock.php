@@ -3,6 +3,7 @@
 namespace Drupal\hubspot\Plugin\Block;
 
 use Drupal;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DateFormatter;
@@ -190,12 +191,12 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   public function hubspot_oauth_refresh() {
     $data = array(
-      'refresh_token' => \Drupal::state()->get('hubspot_refresh_token'),
+      'refresh_token' =>  \Drupal::config('hubspot.settings')->get('hubspot_refresh_token'),
       'client_id' => HUBSPOT_CLIENT_ID,
       'grant_type' => 'refresh_token',
     );
 
-    $data = drupal_http_build_query($data);
+    $data = UrlHelper::buildQuery($data);
 
     $options = array(
       'headers' => array(
@@ -205,30 +206,31 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       'data' => $data,
     );
 
-    $return = drupal_http_request('https://api.hubapi.com/auth/v1/refresh', $options);
+    $url = Url::fromUri('https://api.hubapi.com/auth/v1/refresh', $options)->toString();
+    $return = $this->http_client->get($url);
 
-    if ($return->code == '200') {
-      $return_data = json_decode($return->data, TRUE);
+    if ($return->getStatusCode() == '200') {
+      $return_data = json_decode($return->getBody(), TRUE);
 
       $hubspot_access_token = $return_data['access_token'];
-      \Drupal::state()->get('hubspot_access_token', $hubspot_access_token);
+      \Drupal::config('hubspot.settings')->get('hubspot_access_token', $hubspot_access_token);
 
       $hubspot_refresh_token = $return_data['refresh_token'];
-      \Drupal::state()->get('hubspot_refresh_token', $hubspot_refresh_token);
+      \Drupal::config('hubspot.settings')->get('hubspot_refresh_token', $hubspot_refresh_token);
 
       $hubspot_expires_in = $return_data['expires_in'];
-      \Drupal::state()->get('hubspot_expires_in', $hubspot_expires_in);
+      \Drupal::config('hubspot.settings')->get('hubspot_expires_in', $hubspot_expires_in);
 
       return TRUE;
     }
     else {
       drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
-      watchdog('hubspot', 'Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
+      \Drupal::logger('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
       settings page and reconnect to your Hubspot account.', array(
-        '%code' => $return->code,
-        '%status_message' => $return->status_message,
-      ), WATCHDOG_INFO);
+        '%code' => $return->getStatusCode(),
+        '%status_message' => $return['status_message'],
+      ));
 
       return FALSE;
     }
