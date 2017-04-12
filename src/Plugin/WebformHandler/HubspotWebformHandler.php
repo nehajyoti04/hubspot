@@ -140,7 +140,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     }
     catch (RequestException $e) {
-      watchdog_exception('my_module', $e);
+      watchdog_exception('Hubspot', $e);
     }
 
 
