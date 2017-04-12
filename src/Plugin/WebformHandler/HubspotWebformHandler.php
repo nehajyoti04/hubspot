@@ -98,7 +98,8 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     $entity_id = $request_post_data['entity_id'];
     $node = Node::load($entity_id);
-    $node_title = $node->getTitle();
+
+    !(empty($entity_id)) ? ($node_title = $node->getTitle()) : $node_title = '';
 
     $form_guid =  \Drupal::database()->select('hubspot', 'h')
       ->fields('h', ['hubspot_guid'])
@@ -127,7 +128,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
         'pageUrl' => $page_url,
       );
 
-      $fields = $request_post_data['data'];
+      $fields = $request_post_data;
 //      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&firstname=Neha&lastname=Bohra&email=neha.jyoti%40mailinator.com';
 //      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&'. Json::encode($fields);
       $string = 'hs_context=' . Json::encode($hs_context) . '&'. Json::encode($fields);
@@ -163,6 +164,12 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected function getPostData($operation, WebformSubmissionInterface $webform_submission) {
     // Get submission and elements data.
     $data = $webform_submission->toArray(TRUE);
+
+    // Flatten data.
+    // Prioritizing elements before the submissions fields.
+    $data = $data['data'] + $data;
+    unset($data['data']);
+
     return $data;
   }
 

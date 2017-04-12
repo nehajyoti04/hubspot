@@ -96,3 +96,30 @@ function _hubspot_get_forms() {
 
   }
 }
+
+/**
+ * Implements hook_mail().
+ */
+function hubspot_mail($key, &$message, $params) {
+  $message['subject'] = t('HubSpot leads insertion error');
+
+  switch ($key) {
+    case 'http_error':
+      $message['body'][] = t('When attempting to submit the form "@form" to HubSpot, a HTTP error occurred.', array(
+        '@form' => $params['node_title'],
+      ));
+      break;
+
+    case 'hub_error':
+      $message['body'][] = t('Upon submitting the Webform "@form" to HubSpot, an error was returned.', array(
+        '@form' => $params['node_title'],
+      ));
+      break;
+  }
+
+  $message['body'][] = t('Error message: @message', array('@message' => $params['errormsg']));
+  $message['body'][] = t('HubSpot POST URL: @url', array('@url' => $params['hubspot_url']));
+  $message['body'][] = t('To adjust the debugging settings, visit @url', array(
+    '@url' => Url::fromRoute('hubspot.admin_settings')->toString()
+  ));
+}
