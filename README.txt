@@ -42,3 +42,7 @@ Go to admin/structure/webform/manage/ i.e structure => webforms => your webform 
 admin/structure/webform/manage/contact/handlers
 
 add hubspot handler.
+
+- To view your form submissions click on the link - https://app.hubspot.com/l/forms
+
+

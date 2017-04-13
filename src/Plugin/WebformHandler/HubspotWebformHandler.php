@@ -6,6 +6,7 @@ use Drupal;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Url;
 use Drupal\node\Entity\Node;
 use Drupal\webform\WebformHandlerBase;
@@ -138,6 +139,50 @@ class HubspotWebformHandler extends WebformHandlerBase {
         RequestOptions::BODY => $string,
       ];
       $response = $this->httpClient->request('POST', $url, $request_options);
+
+      // Debugging information.
+      $mailManager = \Drupal::service('plugin.manager.mail');
+      $hubspot_url = 'https://app.hubspot.com';
+      $to = \Drupal::config('hubspot.settings')->get('hubspot_debug_email');
+      $default_language = \Drupal::languageManager()->getDefaultLanguage()->getId();
+      $from = \Drupal::config('hubspot.settings')->get('site_mail');
+      $data = (string) $response->getBody();
+
+      if ($response->getStatusCode() == '204') {
+
+        \Drupal::logger('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
+//          '@post' => strip_tags($response['POST']),
+          '@msg' => strip_tags($data),
+          '%form' => $node_title,
+        ));
+      }
+      elseif (!empty($result['Error'])) {
+        \Drupal::logger('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
+          '@error' => $result['Error'],
+          '%form' => $node_title));
+
+        if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+          $mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
+            'errormsg' => $result['Error'],
+            'hubspot_url' => $hubspot_url,
+            'node_title' => $node_title,
+          ), $from, TRUE);
+
+        }
+      }
+      else {
+        \Drupal::logger('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', array(
+          '@error' => $data,
+          '%form' => $node_title));
+
+        if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
+          $mailManager->mail('hubspot', 'hub_error', $to, $default_language, array(
+            'errormsg' => $data,
+            'hubspot_url' => $hubspot_url,
+            'node_title' => $node_title,
+          ), $from);
+        }
+      }
 
     }
     catch (RequestException $e) {
