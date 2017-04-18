@@ -24,13 +24,7 @@ function hubspot_install() {
  * Implements hook_uninstall().
  */
 function hubspot_uninstall() {
-  \Drupal::config('hubspot.settings')->clear('hubspot_debug_on')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_debug_email')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_log_code')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_access_token')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_refresh_token')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_expires_in')->save();
-  \Drupal::config('hubspot.settings')->clear('hubspot_portalid')->save();
+  \Drupal::configFactory()->getEditable('hubspot.settings')->delete();
 }
 
 /**

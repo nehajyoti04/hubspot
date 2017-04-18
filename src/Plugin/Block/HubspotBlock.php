@@ -3,6 +3,7 @@
 namespace Drupal\hubspot\Plugin\Block;
 
 use Drupal;
+use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -14,7 +15,9 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Url;
 use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\RequestOptions;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -51,9 +54,9 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * @var string $weatherservice
    *   The information from the Weather service for this block.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, Client $client) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ClientInterface $http_client) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->http_client = $client;
+    $this->http_client = $http_client;
   }
 
   /**
@@ -161,27 +164,33 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     ];
     $url = Url::fromUri($api, $options)->toString();
 
-    try {
-      $result = $this->http_client->get($url);
-      //    $result = drupal_http_request("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
-      if ($result->getStatusCode() == 401) {
-        $refresh = $this->hubspot_oauth_refresh();
-        if ($refresh) {
-          $access_token = \Drupal::state()->get('hubspot_access_token', '');
-          $result = $this->http_client->get("https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent?access_token={$access_token}&count={$n}");
-        }
-      }
 
-      return array(
+    if(\Drupal::config('hubspot.settings')->get('hubspot_expires_in') > REQUEST_TIME ) {
+      $result = $this->http_client->get($url);
+
+    } else {
+      $refresh = $this->hubspot_oauth_refresh();
+        if ($refresh) {
+
+
+          $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+          $options = [
+            'query' => [
+              'access_token' => $access_token,
+              'count' => $n
+            ]
+          ];
+          $url = Url::fromUri($api, $options)->toString();
+        $result = $this->http_client->get($url);
+
+        }
+    }
+    return array(
         'Data' => json_decode($result->getBody(), true),
         'Error' => isset($result->error) ? $result->error : '',
         'HTTPCode' => $result->getStatusCode()
       );
 
-    }
-    catch (RequestException $e) {
-
-    }
 
   }
 
@@ -190,50 +199,50 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * Refreshes HubSpot OAuth Access Token when expired.
    */
   public function hubspot_oauth_refresh() {
-    $data = array(
-      'refresh_token' =>  \Drupal::config('hubspot.settings')->get('hubspot_refresh_token'),
-      'client_id' => HUBSPOT_CLIENT_ID,
-      'grant_type' => 'refresh_token',
-    );
 
-    $data = UrlHelper::buildQuery($data);
+    $refresh_token = \Drupal::config('hubspot.settings')->get('hubspot_refresh_token');
+    $api = 'https://api.hubapi.com/auth/v1/refresh';
+    $string = 'refresh_token='.$refresh_token.'&client_id='.HUBSPOT_CLIENT_ID.'&grant_type=refresh_token';
+    $request_options = [
+      RequestOptions::HEADERS => ['Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8'],
+//      RequestOptions::BODY => Json::encode($request_body),
+      RequestOptions::BODY => $string,
+    ];
+    try {
+      $response = $this->http_client->request('POST', 'https://api.hubapi.com/auth/v1/refresh', $request_options);
 
-    $options = array(
-      'headers' => array(
-        'Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8',
-      ),
-      'method' => 'POST',
-      'data' => $data,
-    );
+      if ($response->getStatusCode() == '200') {
 
-    $url = Url::fromUri('https://api.hubapi.com/auth/v1/refresh', $options)->toString();
-    $return = $this->http_client->get($url);
+        $data = Json::decode($response->getBody());
+        $hubspot_access_token = $data['access_token'];
+        $hubspot_refresh_token = $data['refresh_token'];
 
-    if ($return->getStatusCode() == '200') {
-      $return_data = json_decode($return->getBody(), TRUE);
+        $hubspot_expires_in = $data['expires_in'];
 
-      $hubspot_access_token = $return_data['access_token'];
-      \Drupal::config('hubspot.settings')->get('hubspot_access_token', $hubspot_access_token);
+        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_access_token', $hubspot_access_token)->save();
+        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
+        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', ($hubspot_expires_in + REQUEST_TIME))->save();
 
-      $hubspot_refresh_token = $return_data['refresh_token'];
-      \Drupal::config('hubspot.settings')->get('hubspot_refresh_token', $hubspot_refresh_token);
+        return ['value' => $data];
 
-      $hubspot_expires_in = $return_data['expires_in'];
-      \Drupal::config('hubspot.settings')->get('hubspot_expires_in', $hubspot_expires_in);
-
-      return TRUE;
+      }
     }
-    else {
+    catch (RequestException $e) {
+      watchdog_exception('Hubspot', $e);
+    }
+
       drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
       \Drupal::logger('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
       settings page and reconnect to your Hubspot account.', array(
-        '%code' => $return->getStatusCode(),
-        '%status_message' => $return['status_message'],
+        '%code' => $response->getStatusCode(),
+        '%status_message' => $response['status_message'],
       ));
 
       return FALSE;
-    }
+
+
   }
+
 
 }

@@ -20,6 +20,7 @@ class DefaultController extends ControllerBase {
       drupal_set_message(t('Successfully authenticated with Hubspot.'), 'status', FALSE);
 
       \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_access_token', $_GET['access_token'])->save();
+      \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', $_GET['expires_in'])->save();
       \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_refresh_token', $_GET['refresh_token'])->save();
       \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', $_GET['expires_in'])->save();
     }
