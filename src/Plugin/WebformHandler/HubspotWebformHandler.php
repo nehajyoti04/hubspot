@@ -156,14 +156,14 @@ class HubspotWebformHandler extends WebformHandlerBase {
           '%form' => $node_title,
         ));
       }
-      elseif (!empty($result['Error'])) {
+      elseif (!empty($response['Error'])) {
         \Drupal::logger('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
-          '@error' => $result['Error'],
+          '@error' => $response['Error'],
           '%form' => $node_title));
 
         if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
           $mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
-            'errormsg' => $result['Error'],
+            'errormsg' => $response['Error'],
             'hubspot_url' => $hubspot_url,
             'node_title' => $node_title,
           ), $from, TRUE);

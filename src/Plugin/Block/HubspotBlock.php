@@ -2,19 +2,16 @@
 
 namespace Drupal\hubspot\Plugin\Block;
 
-use Drupal;
 use Drupal\Component\Serialization\Json;
-use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DateFormatter;
 use Drupal\Core\Link;
+use Drupal\Core\Logger\LoggerChannelFactory;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\Core\Routing\LinkGeneratorTrait;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Url;
-use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
@@ -30,6 +27,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface {
 //  use LinkGeneratorTrait;
+
+
+  protected $http_client;
+
+  protected $loggerFactory;
+
+  protected $dateFormatter;
+
+  protected $json;
+
   /**
    * Stores the configuration factory.
    *
@@ -37,7 +44,6 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   protected $configFactory;
 
-  protected $http_client;
 
   /**
    * Constructs a Drupal\Component\Plugin\PluginBase object.
@@ -54,9 +60,16 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * @var string $weatherservice
    *   The information from the Weather service for this block.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ClientInterface $http_client) {
+  public function __construct(array $configuration, $plugin_id,
+                              $plugin_definition, ClientInterface $http_client, LoggerChannelFactory $logger,
+                              DateFormatter $dateFormatter, Json $json,
+                              ConfigFactoryInterface $config_factory) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->http_client = $http_client;
+    $this->loggerFactory = $logger;
+    $this->dateFormatter = $dateFormatter;
+    $this->json = $json;
+    $this->configFactory = $config_factory->getEditable('hubspot.settings');
   }
 
   /**
@@ -67,7 +80,11 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('http_client')
+      $container->get('http_client'),
+      $container->get('logger.factory'),
+      $container->get('date.formatter'),
+      $container->get('serialization.json'),
+      $container->get('config.factory')
     );
   }
 
@@ -117,7 +134,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       $items[] = ['#markup' => Link::fromTextAndUrl($lead['properties']['firstname']['value'] . ' ' .
           $lead['properties']['lastname']['value'], $url)->toString() . ' ' . t('(@time ago)',
           array(
-            '@time' => \Drupal::service('date.formatter')->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000))
+            '@time' => $this->dateFormatter->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000))
           )
         )];
     }
@@ -142,11 +159,11 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * @return array
    */
   public function hubspot_get_recent($n = 5) {
-    $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+    $access_token = $this->configFactory->get('hubspot_access_token');
     $n = intval($n);
 
     if (empty($access_token)) {
-      return array('Error' => t('This site is not connected to a HubSpot Account.'));
+      return array('Error' => $this->t('This site is not connected to a HubSpot Account.'));
     }
 
     $api = 'https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent';
@@ -165,7 +182,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     } else {
       $refresh = $this->hubspot_oauth_refresh();
       if ($refresh) {
-        $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+        $access_token = $this->configFactory->get('hubspot_access_token');
         $options = [
           'query' => [
             'access_token' => $access_token,
@@ -190,7 +207,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   public function hubspot_oauth_refresh() {
 
-    $refresh_token = \Drupal::config('hubspot.settings')->get('hubspot_refresh_token');
+    $refresh_token = $this->configFactory->get('hubspot_refresh_token');
     $api = 'https://api.hubapi.com/auth/v1/refresh';
     $string = 'refresh_token='.$refresh_token.'&client_id='.HUBSPOT_CLIENT_ID.'&grant_type=refresh_token';
     $request_options = [
@@ -199,19 +216,19 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       RequestOptions::BODY => $string,
     ];
     try {
-      $response = $this->http_client->request('POST', 'https://api.hubapi.com/auth/v1/refresh', $request_options);
+      $response = $this->http_client->request('POST', $api, $request_options);
 
       if ($response->getStatusCode() == '200') {
 
-        $data = Json::decode($response->getBody());
+        $data = $this->json->decode($response->getBody());
         $hubspot_access_token = $data['access_token'];
         $hubspot_refresh_token = $data['refresh_token'];
 
         $hubspot_expires_in = $data['expires_in'];
 
-        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_access_token', $hubspot_access_token)->save();
-        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
-        \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', ($hubspot_expires_in + REQUEST_TIME))->save();
+        $this->configFactory->set('hubspot_access_token', $hubspot_access_token)->save();
+        $this->configFactory->getEditable('hubspot.settings')->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
+        $this->configFactory->getEditable('hubspot.settings')->set('hubspot_expires_in', ($hubspot_expires_in + REQUEST_TIME))->save();
 
         return ['value' => $data];
 
@@ -221,9 +238,9 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       watchdog_exception('Hubspot', $e);
     }
 
-    drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
+    drupal_set_message($this->t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
-    \Drupal::logger('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
+    $this->loggerFactory->get('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
       settings page and reconnect to your Hubspot account.', array(
       '%code' => $response->getStatusCode(),
       '%status_message' => $response['status_message'],
@@ -231,8 +248,6 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
 
     return FALSE;
 
-
   }
-
 
 }

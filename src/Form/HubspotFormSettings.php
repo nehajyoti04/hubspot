@@ -8,7 +8,11 @@
 namespace Drupal\hubspot\Form;
 
 
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Extension\ModuleHandler;
 use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use GuzzleHttp\Client;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -17,13 +21,30 @@ class HubspotFormSettings extends FormBase {
 
   protected $http_client;
 
-  public function __construct(Client $client) {
+  protected $entityTypeManager;
+
+  protected $moduleHandler;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
+
+  public function __construct(Client $client, EntityTypeManager $entityTypeManager, ModuleHandler $moduleHandler, Connection $database) {
     $this->http_client = $client;
+    $this->entityTypeManager = $entityTypeManager;
+    $this->moduleHandler = $moduleHandler;
+    $this->database = $this->database;
   }
 
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('http_client')
+      $container->get('http_client'),
+      $container->get('entity_type.manager'),
+      $container->get('module_handler'),
+      $container->get('database')
     );
   }
 
@@ -36,7 +57,7 @@ class HubspotFormSettings extends FormBase {
     return 'hubspot_form_settings';
   }
 
-  public function buildForm(array $form, \Drupal\Core\Form\FormStateInterface $form_state, $node = NULL) {
+  public function buildForm(array $form, FormStateInterface $form_state, $node = NULL) {
     $form = [];
 
     $hubspot_forms = _hubspot_get_forms();
@@ -90,13 +111,13 @@ class HubspotFormSettings extends FormBase {
               ],
             ];
 
-            $webform = \Drupal::entityTypeManager()->getStorage('webform')->load('test_1');
+            $webform = $this->entityTypeManager->getStorage('webform')->load('test_1');
             $webform = $webform->getElementsDecoded();
 
-            $submission_storage = \Drupal::entityTypeManager()->getStorage('webform_submission');
+            $submission_storage = $this->entityTypeManager->getStorage('webform_submission');
 
             foreach ($webform as $form_key => $component) {
-              if ($component['#type'] == 'addressfield' && \Drupal::moduleHandler()->moduleExists('addressfield_tokens')) {
+              if ($component['#type'] == 'addressfield' && $this->moduleHandler->moduleExists('addressfield_tokens')) {
                 $addressfield_fields = addressfield_tokens_components();
 
                 foreach ($addressfield_fields as $addressfield_key => $addressfield_value) {
@@ -132,10 +153,10 @@ class HubspotFormSettings extends FormBase {
     return $form;
   }
 
-  public function submitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state) {
     $txn = db_transaction();
 
-    \Drupal::database()->delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
+    $this->database->delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
 
     if ($form_state->getValue(['hubspot_form']) != '--donotmap--') {
       foreach ($form_state->getValue([$form_state->getValue('hubspot_form')]) as $webform_field => $hubspot_field) {
@@ -145,7 +166,7 @@ class HubspotFormSettings extends FormBase {
           'webform_field' => $webform_field,
           'hubspot_field' => $hubspot_field,
         ];
-        \Drupal::database()->insert('hubspot')->fields($fields)->execute();
+        $this->database->insert('hubspot')->fields($fields)->execute();
       }
     }
 

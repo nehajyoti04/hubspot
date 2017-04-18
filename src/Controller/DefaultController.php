@@ -6,22 +6,48 @@
 
 namespace Drupal\hubspot\Controller;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Default controller for the hubspot module.
  */
 class DefaultController extends ControllerBase {
+  /**
+   * The configuration factory.
+   *
+   * @var \Drupal\Core\Config\Config
+   */
+  protected $config;
+
+  /**
+   * DefaultController constructor.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   */
+  function __construct(ConfigFactoryInterface $config_factory) {
+    $this->config = $config_factory->getEditable('hubspot.settings');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory')
+    );
+  }
+
 
   public function hubspot_oauth_connect() {
     if (!empty($_GET['access_token']) && !empty($_GET['refresh_token']) && !empty($_GET['expires_in'])) {
       drupal_set_message(t('Successfully authenticated with Hubspot.'), 'status', FALSE);
 
-      \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_access_token', $_GET['access_token'])->save();
-      \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_refresh_token', $_GET['refresh_token'])->save();
-      \Drupal::configFactory()->getEditable('hubspot.settings')->set('hubspot_expires_in', ($_GET['expires_in'] + REQUEST_TIME))->save();
+      $this->config->set('hubspot_access_token', $_GET['access_token'])->save();
+      $this->config->set('hubspot_refresh_token', $_GET['refresh_token'])->save();
+      $this->config->set('hubspot_expires_in', ($_GET['expires_in'] + REQUEST_TIME))->save();
     }
 
     if (!empty($_GET['error']) && $_GET['error'] == "access_denied") {
