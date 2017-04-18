@@ -87,7 +87,7 @@ class HubspotAdminSettings extends FormBase {
     // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
     $form['debug']['hubspot_debug_email'] = [
       '#title' => t('Debugging email'),
-      '#type' => 'textfield',
+      '#type' => 'email',
       '#default_value' => \Drupal::config('hubspot.settings')->get('hubspot_debug_email'),
       '#description' => t('Email error reports to this address if debugging is enabled.'),
     ];

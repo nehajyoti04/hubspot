@@ -142,19 +142,14 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * @return array
    */
   public function hubspot_get_recent($n = 5) {
-
-
     $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
-
     $n = intval($n);
 
     if (empty($access_token)) {
       return array('Error' => t('This site is not connected to a HubSpot Account.'));
     }
 
-
     $api = 'https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent';
-
 
     $options = [
       'query' => [
@@ -164,34 +159,29 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     ];
     $url = Url::fromUri($api, $options)->toString();
 
-
     if(\Drupal::config('hubspot.settings')->get('hubspot_expires_in') > REQUEST_TIME ) {
       $result = $this->http_client->get($url);
 
     } else {
       $refresh = $this->hubspot_oauth_refresh();
-        if ($refresh) {
-
-
-          $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
-          $options = [
-            'query' => [
-              'access_token' => $access_token,
-              'count' => $n
-            ]
-          ];
-          $url = Url::fromUri($api, $options)->toString();
+      if ($refresh) {
+        $access_token = \Drupal::config('hubspot.settings')->get('hubspot_access_token');
+        $options = [
+          'query' => [
+            'access_token' => $access_token,
+            'count' => $n
+          ]
+        ];
+        $url = Url::fromUri($api, $options)->toString();
         $result = $this->http_client->get($url);
 
-        }
+      }
     }
     return array(
-        'Data' => json_decode($result->getBody(), true),
-        'Error' => isset($result->error) ? $result->error : '',
-        'HTTPCode' => $result->getStatusCode()
-      );
-
-
+      'Data' => json_decode($result->getBody(), true),
+      'Error' => isset($result->error) ? $result->error : '',
+      'HTTPCode' => $result->getStatusCode()
+    );
   }
 
 
@@ -231,15 +221,15 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       watchdog_exception('Hubspot', $e);
     }
 
-      drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
+    drupal_set_message(t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
-      \Drupal::logger('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
+    \Drupal::logger('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
       settings page and reconnect to your Hubspot account.', array(
-        '%code' => $response->getStatusCode(),
-        '%status_message' => $response['status_message'],
-      ));
+      '%code' => $response->getStatusCode(),
+      '%status_message' => $response['status_message'],
+    ));
 
-      return FALSE;
+    return FALSE;
 
 
   }
