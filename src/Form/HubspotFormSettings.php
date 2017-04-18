@@ -67,7 +67,7 @@ class HubspotFormSettings extends FormBase {
     }
     else {
       if (empty($hubspot_forms['value'])) {
-        $form['webforms']['#description'] = t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
+        $form['webforms']['#description'] = $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
       }
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
@@ -88,7 +88,7 @@ class HubspotFormSettings extends FormBase {
         ];
 
         $form['hubspot_form'] = [
-          '#title' => t('HubSpot form'),
+          '#title' => $this->t('HubSpot form'),
           '#type' => 'select',
           '#options' => $hubspot_form_options,
           '#default_value' => _hubspot_default_value($nid),
@@ -97,7 +97,7 @@ class HubspotFormSettings extends FormBase {
         foreach ($hubspot_form_options as $key => $value) {
           if ($key != '--donotmap--') {
             $form[$key] = [
-              '#title' => t('Field mappings for @field', array(
+              '#title' => $this->t('Field mappings for @field', array(
                 '@field' => $value
               )),
               '#type' => 'details',
@@ -154,7 +154,6 @@ class HubspotFormSettings extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $txn = db_transaction();
 
     $this->database->delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
 
@@ -170,7 +169,7 @@ class HubspotFormSettings extends FormBase {
       }
     }
 
-    drupal_set_message(t('The configuration options have been saved.'));
+    drupal_set_message($this->t('The configuration options have been saved.'));
   }
 
 }

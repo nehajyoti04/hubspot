@@ -9,6 +9,7 @@ namespace Drupal\hubspot\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
@@ -34,10 +35,18 @@ class HubspotAdminSettings extends FormBase {
    */
   protected $configFactory;
 
+  protected $entityTypeManager;
 
-  function __construct(Connection $connection, ConfigFactoryInterface $config_factory) {
+  /**
+   * HubspotAdminSettings constructor.
+   * @param \Drupal\Core\Database\Connection $connection
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   */
+  function __construct(Connection $connection, ConfigFactoryInterface $config_factory, EntityTypeManager $entityTypeManager) {
     $this->connection = $connection;
     $this->configFactory = $config_factory->getEditable('hubspot.settings');
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -46,7 +55,8 @@ class HubspotAdminSettings extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('database'),
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -64,17 +74,17 @@ class HubspotAdminSettings extends FormBase {
     $form['additional_settings'] = ['#type' => 'vertical_tabs'];
 
     $form['settings'] = [
-      '#title' => t('Connectivity'),
+      '#title' => $this->t('Connectivity'),
       '#type' => 'details',
       '#group' => 'additional_settings',
     ];
 
     $form['settings']['hubspot_portalid'] = [
-      '#title' => t('HubSpot Portal ID'),
+      '#title' => $this->t('HubSpot Portal ID'),
       '#type' => 'textfield',
       '#required' => TRUE,
       '#default_value' => $this->configFactory->get('hubspot_portalid'),
-      '#description' => t('Enter the Hubspot Portal ID for this site.  It can be found by
+      '#description' => $this->t('Enter the Hubspot Portal ID for this site.  It can be found by
       <a href="https://login.hubspot.com/login" target="_blank">logging into HubSpot</a> going to the Dashboard and
       examining the url. Example: "https://app.hubspot.com/dashboard-plus/12345/dash/".  The number after
       "dashboard-plus" is your Portal ID.'),
@@ -82,37 +92,37 @@ class HubspotAdminSettings extends FormBase {
 
     if ($this->configFactory->get('hubspot_portalid')) {
       $form['settings']['hubspot_authentication'] = [
-        '#value' => t('Connect Hubspot Account'),
+        '#value' => $this->t('Connect Hubspot Account'),
         '#type' => 'submit',
         '#submit' => array([$this, 'hubspotOauthSubmitForm']),
       ];
 
       if ($this->configFactory->get('hubspot_refresh_token')) {
-        $form['settings']['hubspot_authentication']['#suffix'] = t('Your Hubspot account is connected.');
-        $form['settings']['hubspot_authentication']['#value'] = t('Disconnect Hubspot Account');
+        $form['settings']['hubspot_authentication']['#suffix'] = $this->t('Your Hubspot account is connected.');
+        $form['settings']['hubspot_authentication']['#value'] = $this->t('Disconnect Hubspot Account');
         $form['settings']['hubspot_authentication']['#submit'] = array([$this, 'hubspotOauthDisconnect']);
       }
     }
 
     $form['settings']['hubspot_log_code'] = [
-      '#title' => t('HubSpot Traffic Logging Code'),
+      '#title' => $this->t('HubSpot Traffic Logging Code'),
       '#type' => 'textarea',
       '#default_value' => $this->configFactory->get('hubspot_log_code'),
-      '#description' => t('To enable HubSpot traffic logging on your site, paste the External Site Traffic Logging code
+      '#description' => $this->t('To enable HubSpot traffic logging on your site, paste the External Site Traffic Logging code
       here.'),
     ];
 
     $form['debug'] = [
-      '#title' => t('Debugging'),
+      '#title' => $this->t('Debugging'),
       '#type' => 'details',
       '#group' => 'additional_settings',
     ];
 
     $form['debug']['hubspot_debug_on'] = [
-      '#title' => t('Debugging enabled'),
+      '#title' => $this->t('Debugging enabled'),
       '#type' => 'checkbox',
       '#default_value' => $this->configFactory->get('hubspot_debug_on'),
-      '#description' => t('If debugging is enabled, HubSpot errors will be emailed to the address below. Otherwise, they
+      '#description' => $this->t('If debugging is enabled, HubSpot errors will be emailed to the address below. Otherwise, they
       will be logged to the regular Drupal error log.'),
     ];
 
@@ -121,17 +131,17 @@ class HubspotAdminSettings extends FormBase {
     // not scalar. You'll need to provide a default value in
     // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
     $form['debug']['hubspot_debug_email'] = [
-      '#title' => t('Debugging email'),
+      '#title' => $this->t('Debugging email'),
       '#type' => 'email',
       '#default_value' => $this->configFactory->get('hubspot_debug_email'),
-      '#description' => t('Email error reports to this address if debugging is enabled.'),
+      '#description' => $this->t('Email error reports to this address if debugging is enabled.'),
     ];
 
     $form['webforms'] = [
-      '#title' => t('Webforms'),
+      '#title' => $this->t('Webforms'),
       '#type' => 'details',
       '#group' => 'additional_settings',
-      '#description' => 'The following webforms have been detected and can be configured to submit to the HubSpot API.',
+      '#description' => $this->t('The following webforms have been detected and can be configured to submit to the HubSpot API.'),
       '#tree' => TRUE,
     ];
     $webform_nodes = array();
@@ -145,7 +155,7 @@ class HubspotAdminSettings extends FormBase {
     else {
       if (empty($hubspot_forms['value'])) {
 
-        $form['webforms']['#description'] = t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
+        $form['webforms']['#description'] = $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
       }
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
@@ -157,7 +167,6 @@ class HubspotAdminSettings extends FormBase {
             $hubspot_field_options[$hubspot_form['guid']]['fields'][$hubspot_field['name']] = $hubspot_field['label'] . ' (' . $hubspot_field['fieldType'] . ')';
           }
         }
-
 
         $nodes =  $this->connection->select('node', 'n')
           ->fields('n', ['nid'])
@@ -172,7 +181,7 @@ class HubspotAdminSettings extends FormBase {
           ];
 
           $form['webforms']['nid-' . $nid]['hubspot_form'] = [
-            '#title' => t('HubSpot form'),
+            '#title' => $this->t('HubSpot form'),
             '#type' => 'select',
             '#options' => $hubspot_form_options,
             '#default_value' => _hubspot_default_value($nid),
@@ -181,7 +190,7 @@ class HubspotAdminSettings extends FormBase {
           foreach ($hubspot_form_options as $key => $value) {
             if ($key != '--donotmap--') {
               $form['webforms']['nid-' . $nid][$key] = [
-                '#title' => t('Field mappings for @field', [
+                '#title' => $this->t('Field mappings for @field', [
                   '@field' => $value
                 ]),
                 '#type' => 'details',
@@ -198,7 +207,7 @@ class HubspotAdminSettings extends FormBase {
               $webform_field_name = WebformEntityReferenceItem::getEntityWebformFieldName($node);
               $webform_id = $node->$webform_field_name->target_id;
 
-              $webform = \Drupal::entityTypeManager()->getStorage('webform')->load($webform_id);
+              $webform = $this->entityTypeManager->getStorage('webform')->load($webform_id);
               $webform = $webform->getElementsDecoded();
 
               foreach ($webform as $form_key => $component) {
@@ -231,7 +240,7 @@ class HubspotAdminSettings extends FormBase {
     if ($form_state->getValue(['hubspot_debug_on']) && !valid_email_address($form_state->getValue([
         'hubspot_debug_email'
       ]))) {
-      $form_state->setErrorByName('hubspot_debug_email', t('You must provide a valid email address.'));
+      $form_state->setErrorByName('hubspot_debug_email', $this->t('You must provide a valid email address.'));
     }
 
   }
@@ -287,7 +296,7 @@ class HubspotAdminSettings extends FormBase {
     }
 
 
-    drupal_set_message(t('The configuration options have been saved.'));
+    drupal_set_message($this->t('The configuration options have been saved.'));
   }
 
   /**
@@ -299,7 +308,7 @@ class HubspotAdminSettings extends FormBase {
       'query' => [
         'client_id' => HUBSPOT_CLIENT_ID,
 //        'portalId' => '3088872',
-        'portalId' => \Drupal::config('hubspot.settings')->get('hubspot_portalid'),
+        'portalId' => $this->configFactory->get('hubspot_portalid'),
         'redirect_uri' => $base_url . Url::fromRoute('hubspot.oauth_connect')->toString(),
         'scope' => HUBSPOT_SCOPE,
       ]

@@ -26,8 +26,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * )
  */
 class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface {
-//  use LinkGeneratorTrait;
-
 
   protected $http_client;
 
@@ -109,7 +107,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
 
     // This part of the HubSpot API returns HTTP error codes on failure, with no message
     if (!empty($leads['Error']) || $leads['HTTPCode'] != 200) {
-      $output = t('An error occurred when fetching the HubSpot leads data: @error', array(
+      $output = $this->t('An error occurred when fetching the HubSpot leads data: @error', array(
         '@error' => !empty($leads['Error']) ? $leads['Error'] : $leads['HTTPCode'],
       ));
 
@@ -120,7 +118,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
 
     }
     elseif (empty($leads['Data'])) {
-      $output = t('No leads to show.');
+      $output = $this->t('No leads to show.');
       return array(
         '#type' => 'markup',
         '#markup' => $output,
@@ -132,7 +130,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     foreach ($leads['Data']['contacts'] as $lead) {
       $url = Url::fromUri($lead['profile-url']);
       $items[] = ['#markup' => Link::fromTextAndUrl($lead['properties']['firstname']['value'] . ' ' .
-          $lead['properties']['lastname']['value'], $url)->toString() . ' ' . t('(@time ago)',
+          $lead['properties']['lastname']['value'], $url)->toString() . ' ' . $this->t('(@time ago)',
           array(
             '@time' => $this->dateFormatter->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000))
           )
@@ -176,7 +174,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     ];
     $url = Url::fromUri($api, $options)->toString();
 
-    if(\Drupal::config('hubspot.settings')->get('hubspot_expires_in') > REQUEST_TIME ) {
+    if($this->configFactory->get('hubspot_expires_in') > REQUEST_TIME ) {
       $result = $this->http_client->get($url);
 
     } else {
