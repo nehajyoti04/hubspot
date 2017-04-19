@@ -252,8 +252,6 @@ class HubspotAdminSettings extends FormBase {
     ->set('hubspot_log_code', $form_state->getValue(['hubspot_log_code']))
       ->save();
 
-    $txn = db_transaction();
-
     // Check if webform values even exist before continuing.
     if (!$form_state->getValue('webforms')) {
 
@@ -276,7 +274,6 @@ class HubspotAdminSettings extends FormBase {
     }
     else {
       // Insert entry.
-
       foreach ($form_state->getValue('webforms') as $key => $settings) {
         $this->connection->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
         if ($settings['hubspot_form'] != '--donotmap--') {
@@ -302,12 +299,11 @@ class HubspotAdminSettings extends FormBase {
   /**
    * Form submission handler for hubspot_admin_settings().
    */
-  public function hubspotOauthSubmitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  public function hubspotOauthSubmitForm(array &$form, FormStateInterface $form_state) {
     global $base_url;
     $options = array(
       'query' => [
         'client_id' => HUBSPOT_CLIENT_ID,
-//        'portalId' => '3088872',
         'portalId' => $this->configFactory->get('hubspot_portalid'),
         'redirect_uri' => $base_url . Url::fromRoute('hubspot.oauth_connect')->toString(),
         'scope' => HUBSPOT_SCOPE,
@@ -325,7 +321,7 @@ class HubspotAdminSettings extends FormBase {
    *
    * Deletes Hubspot OAuth tokens.
    */
-  public function hubspotOauthDisconnect(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  public function hubspotOauthDisconnect(array &$form, FormStateInterface $form_state) {
     $this->configFactory->clear('hubspot_refresh_token')->save();
   }
 

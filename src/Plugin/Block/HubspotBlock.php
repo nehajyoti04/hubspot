@@ -225,8 +225,8 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
         $hubspot_expires_in = $data['expires_in'];
 
         $this->configFactory->set('hubspot_access_token', $hubspot_access_token)->save();
-        $this->configFactory->getEditable('hubspot.settings')->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
-        $this->configFactory->getEditable('hubspot.settings')->set('hubspot_expires_in', ($hubspot_expires_in + REQUEST_TIME))->save();
+        $this->configFactory->set('hubspot_refresh_token', $hubspot_refresh_token)->save();
+        $this->configFactory->set('hubspot_expires_in', ($hubspot_expires_in + REQUEST_TIME))->save();
 
         return ['value' => $data];
 

@@ -123,3 +123,37 @@ function hubspot_mail($key, &$message, $params) {
     '@url' => Url::fromRoute('hubspot.admin_settings')->toString()
   ));
 }
+
+/**
+ * Implements hook_page_attachments().
+ */
+function hubspot_page_attachments(&$page) {
+  $page['#attached']['library'][] = 'hubspot/hubspot.code_tracking';
+}
+
+/**
+ * @return array
+ */
+function hubspot_library_info_build() {
+  $portal_id = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
+  $libraries = [];
+  // Add a library whose information changes depending on certain conditions.
+  $libraries['hubspot.code_tracking'] = [
+    'dependencies' => [
+      'core/jquery',
+      'core/drupalSettings'
+    ],
+  ];
+
+    $libraries['hubspot.code_tracking'] += [
+      'js' => [
+        'https://js.hs-scripts.com/' .$portal_id. '.js' => [
+          'type' => 'external',
+            'attributes' =>  [
+              'id' =>  "hs-script-loader", 'defer' => true, 'async' => true
+            ]
+          ]
+        ],
+    ];
+  return $libraries;
+}
