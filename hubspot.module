@@ -57,13 +57,13 @@ function hubspot_help($route_name) {
 /**
  * Returns the default value for the given arguments.
  */
-function _hubspot_default_value($nid, $hubspot_guid = NULL, $webform_field = NULL) {
+function _hubspot_default_value($id, $hubspot_guid = NULL, $webform_field = NULL) {
   if (empty($hubspot_guid)) {
-    return db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.nid = :nid", 0, 1, array(':nid' => $nid))->fetchField();
+    return db_query_range("SELECT hubspot_guid FROM {hubspot} h WHERE h.id = :id", 0, 1, array(':id' => $id))->fetchField();
   }
   else {
-    return db_query_range("SELECT hubspot_field FROM {hubspot} h WHERE h.nid = :nid AND h.hubspot_guid = :guid AND h.webform_field = :webform_field", 0, 1, array(
-      ':nid' => $nid,
+    return db_query_range("SELECT hubspot_field FROM {hubspot} h WHERE h.id = :id AND h.hubspot_guid = :guid AND h.webform_field = :webform_field", 0, 1, array(
+      ':id' => $id,
       ':guid' => $hubspot_guid,
       ':webform_field' => $webform_field,
     ))->fetchField();
@@ -148,15 +148,15 @@ function hubspot_library_info_build() {
     ],
   ];
 
-    $libraries['hubspot.code_tracking'] += [
-      'js' => [
-        'https://js.hs-scripts.com/' .$portal_id. '.js' => [
-          'type' => 'external',
-            'attributes' =>  [
-              'id' =>  "hs-script-loader", 'defer' => true, 'async' => true
-            ]
-          ]
-        ],
-    ];
+  $libraries['hubspot.code_tracking'] += [
+    'js' => [
+      'https://js.hs-scripts.com/' .$portal_id. '.js' => [
+        'type' => 'external',
+        'attributes' =>  [
+          'id' =>  "hs-script-loader", 'defer' => true, 'async' => true
+        ]
+      ]
+    ],
+  ];
   return $libraries;
 }

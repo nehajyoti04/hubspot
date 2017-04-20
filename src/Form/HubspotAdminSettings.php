@@ -137,25 +137,15 @@ class HubspotAdminSettings extends FormBase {
       '#description' => $this->t('Email error reports to this address if debugging is enabled.'),
     ];
 
-    $form['webforms'] = [
-      '#title' => $this->t('Webforms'),
-      '#type' => 'details',
-      '#group' => 'additional_settings',
-      '#description' => $this->t('The following webforms have been detected and can be configured to submit to the HubSpot API.'),
-      '#tree' => TRUE,
-    ];
-    $webform_nodes = array();
-
-    $nodes = [];
-
+    // Mapping hubspot and webform/ webform node forms.
+    $hubspot_form_description  = '';
     $hubspot_forms = _hubspot_get_forms();
     if (isset($hubspot_forms['error'])) {
-      $form['webforms']['#description'] = $hubspot_forms['error'];
+      $hubspot_form_description =  $hubspot_forms['error'];
     }
     else {
       if (empty($hubspot_forms['value'])) {
-
-        $form['webforms']['#description'] = $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
+        $hubspot_form_description =  $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
       }
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
@@ -167,6 +157,88 @@ class HubspotAdminSettings extends FormBase {
             $hubspot_field_options[$hubspot_form['guid']]['fields'][$hubspot_field['name']] = $hubspot_field['label'] . ' (' . $hubspot_field['fieldType'] . ')';
           }
         }
+      }
+    }
+
+    $form['webforms'] = [
+      '#title' => $this->t('Webforms'),
+      '#type' => 'details',
+      '#group' => 'additional_settings',
+      '#description' => $this->t('The following webforms have been detected
+       and can be configured to submit to the HubSpot API.'),
+      '#tree' => TRUE,
+    ];
+
+    $form['webforms']['#description'] = $hubspot_form_description;
+
+    if (!isset($hubspot_forms['error'])) {
+      if (!empty($hubspot_forms['value'])) {
+
+        $webform_types = \Drupal::service('entity.manager')->getStorage('webform')->loadMultiple();
+
+        foreach ($webform_types as $webform_type) {
+          $webform_type_id = $webform_type->id();
+          $webform_type_label = $webform_type->label();
+          $form['webforms'][$webform_type_id] = [
+            '#title' => $webform_type_label,
+            '#type' => 'details',
+          ];
+          $form['webforms'][$webform_type_id]['hubspot_form'] = [
+            '#title' => $this->t('HubSpot form'),
+            '#type' => 'select',
+            '#options' => $hubspot_form_options,
+            '#default_value' => _hubspot_default_value($webform_type_id),
+          ];
+
+          foreach ($hubspot_form_options as $key => $value) {
+            if ($key != '--donotmap--') {
+              $form['webforms'][$webform_type_id][$key] = [
+                '#title' => $this->t('Field mappings for @field', [
+                  '@field' => $value
+                ]),
+                '#type' => 'details',
+                '#states' => [
+                  'visible' => [
+                    ':input[name="webforms[' . $webform_type_id . '][hubspot_form]"]' => [
+                      'value' => $key
+                    ]
+                  ]
+                ],
+              ];
+
+              $webform = $this->entityTypeManager->getStorage('webform')->load($webform_type_id);
+              $webform = $webform->getElementsDecoded();
+
+              foreach ($webform as $form_key => $component) {
+                if ($component['#type'] !== 'markup') {
+                  $form['webforms'][$webform_type_id][$key][$form_key] = [
+                    '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
+                    '#type' => 'select',
+                    '#options' => $hubspot_field_options[$key]['fields'],
+                    '#default_value' => _hubspot_default_value($webform_type_id, $key, $form_key),
+                  ];
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Webform node forms mapping.
+
+    $form['webform_nodes'] = [
+      '#title' => $this->t('Webform Nodes'),
+      '#type' => 'details',
+      '#group' => 'additional_settings',
+      '#description' => $this->t('The following webform Nodes have been detected
+       and can be configured to submit to the HubSpot API.(Note: Webform Nodes module needs to enabled, to create node webforms.)'),
+      '#tree' => TRUE,
+    ];
+    $form['webform_nodes']['#description']  = $hubspot_form_description;
+
+    if (!isset($hubspot_forms['error'])) {
+      if (!empty($hubspot_forms['value'])) {
 
         $nodes =  $this->connection->select('node', 'n')
           ->fields('n', ['nid'])
@@ -175,12 +247,12 @@ class HubspotAdminSettings extends FormBase {
 
         foreach ($nodes as $node) {
           $nid = $node->nid;
-          $form['webforms']['nid-' . $nid] = [
+          $form['webform_nodes']['nid-' . $nid] = [
             '#title' => Node::load($nid)->getTitle(),
             '#type' => 'details',
           ];
 
-          $form['webforms']['nid-' . $nid]['hubspot_form'] = [
+          $form['webform_nodes']['nid-' . $nid]['hubspot_form'] = [
             '#title' => $this->t('HubSpot form'),
             '#type' => 'select',
             '#options' => $hubspot_form_options,
@@ -189,14 +261,14 @@ class HubspotAdminSettings extends FormBase {
 
           foreach ($hubspot_form_options as $key => $value) {
             if ($key != '--donotmap--') {
-              $form['webforms']['nid-' . $nid][$key] = [
+              $form['webform_nodes']['nid-' . $nid][$key] = [
                 '#title' => $this->t('Field mappings for @field', [
                   '@field' => $value
                 ]),
                 '#type' => 'details',
                 '#states' => [
                   'visible' => [
-                    ':input[name="webforms[nid-' . $nid . '][hubspot_form]"]' => [
+                    ':input[name="webform_nodes[nid-' . $nid . '][hubspot_form]"]' => [
                       'value' => $key
                     ]
                   ]
@@ -212,7 +284,7 @@ class HubspotAdminSettings extends FormBase {
 
               foreach ($webform as $form_key => $component) {
                 if ($component['#type'] !== 'markup') {
-                  $form['webforms']['nid-' . $nid][$key][$form_key] = [
+                  $form['webform_nodes']['nid-' . $nid][$key][$form_key] = [
                     '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
                     '#type' => 'select',
                     '#options' => $hubspot_field_options[$key]['fields'],
@@ -221,7 +293,6 @@ class HubspotAdminSettings extends FormBase {
                 }
 
               }
-
             }
           }
         }
@@ -265,16 +336,17 @@ class HubspotAdminSettings extends FormBase {
       ->set('tracking_code_on', $form_state->getValue(['tracking_code_on']))
       ->save();
 
+
     // Check if webform values even exist before continuing.
     if (!$form_state->getValue('webforms')) {
 
       foreach ($form_state->getValue('webforms') as $key => $settings) {
-        $this->connection->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
+        $this->connection->delete('hubspot')->condition('id', $key)->execute();
 
         if ($settings['hubspot_form'] != '--donotmap--') {
           foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
             $fields = [
-              'nid' => str_replace('nid-', '', $key),
+              'nid' => $key,
               'hubspot_guid' => $settings['hubspot_form'],
               'webform_field' => $webform_field,
               'hubspot_field' => $hubspot_field,
@@ -287,11 +359,48 @@ class HubspotAdminSettings extends FormBase {
     else {
       // Insert entry.
       foreach ($form_state->getValue('webforms') as $key => $settings) {
-        $this->connection->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();
+        $this->connection->delete('hubspot')->condition('id', $key)->execute();
         if ($settings['hubspot_form'] != '--donotmap--') {
           foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
             $fields = [
-              'nid' => str_replace('nid-', '', $key),
+              'id' => $key,
+              'hubspot_guid' => $settings['hubspot_form'],
+              'webform_field' => $webform_field,
+              'hubspot_field' => $hubspot_field,
+            ];
+            $this->connection->insert('hubspot')->fields($fields)->execute();
+          }
+        }
+      }
+    }
+
+    // Check if webform values even exist before continuing.
+    if (!$form_state->getValue('webform_nodes')) {
+
+      foreach ($form_state->getValue('webform_nodes') as $key => $settings) {
+        $this->connection->delete('hubspot')->condition('id', str_replace('nid-', '', $key))->execute();
+
+        if ($settings['hubspot_form'] != '--donotmap--') {
+          foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
+            $fields = [
+              'id' => str_replace('nid-', '', $key),
+              'hubspot_guid' => $settings['hubspot_form'],
+              'webform_field' => $webform_field,
+              'hubspot_field' => $hubspot_field,
+            ];
+            $this->connection->insert('hubspot')->fields($fields)->execute();
+          }
+        }
+      }
+    }
+    else {
+      // Insert entry.
+      foreach ($form_state->getValue('webform_nodes') as $key => $settings) {
+        $this->connection->delete('hubspot')->condition('id', str_replace('nid-', '', $key))->execute();
+        if ($settings['hubspot_form'] != '--donotmap--') {
+          foreach ($settings[$settings['hubspot_form']] as $webform_field => $hubspot_field) {
+            $fields = [
+              'id' => str_replace('nid-', '', $key),
               'hubspot_guid' => $settings['hubspot_form'],
               'webform_field' => $webform_field,
               'hubspot_field' => $hubspot_field,

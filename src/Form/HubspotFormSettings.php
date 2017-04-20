@@ -155,12 +155,12 @@ class HubspotFormSettings extends FormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
-    $this->database->delete('hubspot')->condition('nid', $form_state->getValue(['nid']))->execute();
+    $this->database->delete('hubspot')->condition('id', $form_state->getValue(['nid']))->execute();
 
     if ($form_state->getValue(['hubspot_form']) != '--donotmap--') {
       foreach ($form_state->getValue([$form_state->getValue('hubspot_form')]) as $webform_field => $hubspot_field) {
         $fields = [
-          'nid' => $form_state->getValue(['nid']),
+          'id' => $form_state->getValue(['nid']),
           'hubspot_guid' => $form_state->getValue(['hubspot_form']),
           'webform_field' => $webform_field,
           'hubspot_field' => $hubspot_field,

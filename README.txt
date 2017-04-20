@@ -48,7 +48,9 @@ For hubspot tracking code : refer this : https://knowledge.hubspot.com/articles/
 
 
 - For Web analytics
-1. Go to https://app.hubspot.com/reports-dashboard/3089539/web-analytics(Your portal id)
+1. Enable your tracking code in the configuraton
+2. Go to https://app.hubspot.com/reports-dashboard/{portalid}/web-analytics(Your portal id).
+3. There is a list of analysis report like session, Traffic metrics etc available for your site.
 
 
 - Lead Flow

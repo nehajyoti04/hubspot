@@ -96,15 +96,24 @@ class HubspotWebformHandler extends WebformHandlerBase {
    */
   protected function remotePost($operation, WebformSubmissionInterface $webform_submission) {
     $request_post_data = $this->getPostData($operation, $webform_submission);
+    $entity_type = $request_post_data['entity_type'];
+    if($entity_type == 'node') {
+      // Case 1: of node forms.
+      $entity_id = $request_post_data['entity_id'];
+      $node = Node::load($entity_id);
+      $form_title = $node->getTitle();
+      $id = $entity_id;
 
-    $entity_id = $request_post_data['entity_id'];
-    $node = Node::load($entity_id);
-
-    !(empty($entity_id)) ? ($node_title = $node->getTitle()) : $node_title = '';
-
+      $page_url = \Drupal\Core\Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
+    } else {
+      // Case 2: Webform it self.
+      $id = $this->getWebform()->getOriginalId();
+      $form_title = $this->getWebform()->get('title');
+      $page_url = \Drupal\Core\Url::fromUserInput('/form/' . $id, array('absolute' => TRUE))->toString();
+    }
     $form_guid =  \Drupal::database()->select('hubspot', 'h')
       ->fields('h', ['hubspot_guid'])
-      ->condition('nid', $entity_id)
+      ->condition('id', $id)
       ->range(0,1)
       ->execute()->fetchField();
 
@@ -121,11 +130,11 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $cookie = \Drupal::request()->cookies->get('hubspotutk');
 
     try {
-      $page_url = \Drupal\Core\Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
+
       $hs_context = array(
         'hutk' => isset($cookie) ? $cookie : '',
         'ipAddress' => Drupal::request()->getClientIp(),
-        'pageName' => $node_title,
+        'pageName' => $form_title,
         'pageUrl' => $page_url,
       );
 
@@ -153,19 +162,19 @@ class HubspotWebformHandler extends WebformHandlerBase {
         \Drupal::logger('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
 //          '@post' => strip_tags($response['POST']),
           '@msg' => strip_tags($data),
-          '%form' => $node_title,
+          '%form' => $form_title,
         ));
       }
       elseif (!empty($response['Error'])) {
         \Drupal::logger('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
           '@error' => $response['Error'],
-          '%form' => $node_title));
+          '%form' => $form_title));
 
         if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
           $mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
             'errormsg' => $response['Error'],
             'hubspot_url' => $hubspot_url,
-            'node_title' => $node_title,
+            'node_title' => $form_title,
           ), $from, TRUE);
 
         }
@@ -173,13 +182,13 @@ class HubspotWebformHandler extends WebformHandlerBase {
       else {
         \Drupal::logger('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', array(
           '@error' => $data,
-          '%form' => $node_title));
+          '%form' => $form_title));
 
         if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
           $mailManager->mail('hubspot', 'hub_error', $to, $default_language, array(
             'errormsg' => $data,
             'hubspot_url' => $hubspot_url,
-            'node_title' => $node_title,
+            'node_title' => $form_title,
           ), $from);
         }
       }
