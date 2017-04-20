@@ -139,12 +139,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
       );
 
       $fields = $request_post_data;
-//      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&firstname=Neha&lastname=Bohra&email=neha.jyoti%40mailinator.com';
-//      $string = 'hs_context=%7B%22hutk%22%3A%221c62b00222e1d783c6bab35c173f89ab%22%2C%22ipAddress%22%3A%22%3A%3A1%22%2C%22pageName%22%3A%22test%20Webform%201%22%2C%22pageUrl%22%3A%22http%3A%5C/%5C/drupal7%5C/node%5C/6%22%7D&'. Json::encode($fields);
       $string = 'hs_context=' . Json::encode($hs_context) . '&'. Json::encode($fields);
       $request_options = [
         RequestOptions::HEADERS => ['Content-Type' => 'application/x-www-form-urlencoded'],
-//      RequestOptions::BODY => Json::encode($request_body),
         RequestOptions::BODY => $string,
       ];
       $response = $this->httpClient->request('POST', $url, $request_options);
@@ -160,7 +157,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
       if ($response->getStatusCode() == '204') {
 
         \Drupal::logger('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
-//          '@post' => strip_tags($response['POST']),
           '@msg' => strip_tags($data),
           '%form' => $form_title,
         ));
@@ -198,9 +194,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
       watchdog_exception('Hubspot', $e);
     }
 
-
-//    print '<pre>'; print_r("request post data"); print '</pre>';
-//    print '<pre>'; print_r($request_post_data); print '</pre>';exit;
   }
 
   /**
