@@ -228,6 +228,22 @@ class HubspotAdminSettings extends FormBase {
       }
     }
 
+    $form['tracking_code'] = [
+      '#title' => $this->t('Tracking Code'),
+      '#type' => 'details',
+      '#group' => 'additional_settings',
+    ];
+
+    $form['tracking_code']['tracking_code_on'] = [
+      '#title' => $this->t('Enable Tracking Code'),
+      '#type' => 'checkbox',
+      '#default_value' => $this->configFactory->get('tracking_code_on'),
+      '#description' => $this->t('If Tracking code is enabled, Javascript
+      tracking will be inserted in all/specified pages of the site as configured
+       in hubspot account.'),
+    ];
+
+
     $form['submit'] = [
       '#type' => 'submit',
       '#value' => ('Save Configuration'),
@@ -236,25 +252,21 @@ class HubspotAdminSettings extends FormBase {
     return $form;
   }
 
-  public function validateForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {
-    if ($form_state->getValue(['hubspot_debug_on']) && !valid_email_address($form_state->getValue([
-        'hubspot_debug_email'
-      ]))) {
-      $form_state->setErrorByName('hubspot_debug_email', $this->t('You must provide a valid email address.'));
-    }
-
-  }
-
+  /**
+   * @param array $form
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   * @throws \Exception
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->configFactory->set('hubspot_portalid', $form_state->getValue('hubspot_portalid'))
-    ->set('hubspot_debug_email', $form_state->getValue('hubspot_debug_email'))
-    ->set('hubspot_debug_on', $form_state->getValue('hubspot_debug_on'))
-    ->set('hubspot_log_code', $form_state->getValue(['hubspot_log_code']))
+      ->set('hubspot_debug_email', $form_state->getValue('hubspot_debug_email'))
+      ->set('hubspot_debug_on', $form_state->getValue('hubspot_debug_on'))
+      ->set('hubspot_log_code', $form_state->getValue(['hubspot_log_code']))
+      ->set('tracking_code_on', $form_state->getValue(['tracking_code_on']))
       ->save();
 
     // Check if webform values even exist before continuing.
     if (!$form_state->getValue('webforms')) {
-
 
       foreach ($form_state->getValue('webforms') as $key => $settings) {
         $this->connection->delete('hubspot')->condition('nid', str_replace('nid-', '', $key))->execute();

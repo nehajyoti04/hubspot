@@ -128,7 +128,10 @@ function hubspot_mail($key, &$message, $params) {
  * Implements hook_page_attachments().
  */
 function hubspot_page_attachments(&$page) {
-  $page['#attached']['library'][] = 'hubspot/hubspot.code_tracking';
+  // If tracking code is enabled then Attach the library.
+  if(\Drupal::config('hubspot.settings')->get('tracking_code_on')) {
+    $page['#attached']['library'][] = 'hubspot/hubspot.code_tracking';
+  }
 }
 
 /**

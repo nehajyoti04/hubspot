@@ -1,12 +1,19 @@
-Requirements
+CONTENTS OF THIS FILE
+---------------------
+
+ * Introduction
+ * Installation
+ * Configuration
+ * Maintainers
+
+INTRODUCTION
 ------------
 
-This module currently requires 7.x, Webform 3.x, and a HubSpot
-account with access to the HubSpot API.
 
+INSTALLATION
+--------------------------
 
-Installation Information
--------------------
+Install the module like any other Drupal module.
 
 You can find detailed help on how to use HubSpot with Webforms in this
 module's Help page in the Drupal administrator interface. Head to Help and
@@ -19,30 +26,66 @@ handbook pages:
 http://drupal.org/node/1195370
 
 
-Sponsorship
------------
+CONFIGURATION
+--------------------------
 
-This project is sponsored by Digett, a Drupal-friendly San Antonio web design
-company with a focus on inbound marketing. Need additional features or custom
-styling? Contact us.
+- For Contact form submission
+1.GO to hubspot site and  Go to contacts -> Forms(can use test accounts)
+2. Add fields in the form.
+In Drupal site:
+* Create a new webform OR use exisiting contact webform.
+* Add fields in the contact form.
+* Create a new node of webform type created above.
+* Go to admin/structure/webform/manage/{webform_type}/handlers. eg : admin/structure/webform/manage/test_1/handlers
+* Go to admin/structure/webform/manage/ i.e structure => webforms => your webform type (eg: contact)
+=> handler tab (admin/structure/webform/manage/contact/handlers)
+* Add hubspot Webform handler(Mandatory for contact form submissions).
+* Map form fields in the drupal form to hubspot form on configuration page.
 
-http://www.digett.com/
+- To view your form submissions click on the link - https://app.hubspot.com/l/forms
+
+For hubspot tracking code : refer this : https://knowledge.hubspot.com/articles/KCS_Article/Reports/How-do-I-install-the-HubSpot-tracking-code-on-my-Drupal-site
 
 
+- For Web analytics
+1. Go to https://app.hubspot.com/reports-dashboard/3089539/web-analytics(Your portal id)
+
+
+- Lead Flow
+* Login to hubspot account-> GO to marketing profile and in the navigation click on Lead Flows.
+* Click on Create Lead Flow button -> Add the lead flow as desired.
+* To Enable Lead Flow in drupal site, go to admin configuration form and check Tracking Code on.
+
+
+- Event ( a)Clicked  b) View)
+Site visits - https://app.hubspot.com/reports/3089539/events/000002042577/#/assists/content/completions/?range=1M&frequency=weekly&start=04/01/17&end=04/19/17
+
+
+configuration :
+- Go to reports -> reports settings  in hubspot site , copy tracking code.
+
+
+2. View unique contacts - https://app.hubspot.com/sales/3089539/contacts/list/view/all/?
+
+
+Maintainers
+---------------------
+
+nehajyoti (Jyoti Bohra)
+
+
+
+Requirements
+------------
+
+
+
+Installation Information
+-------------------
 
 
 ---
-http://drupal8/admin/structure/webform/manage/test_1/handlers
-Add handler - remote post -
-eg: url https://app.hubspot.com/forms/3088872/994db33e-47c9-419e-8819-d9c801f251c1/edit/
 
 
-Go to admin/structure/webform/manage/ i.e structure => webforms => your webform type (eg: contact)
-=> handler tab
-admin/structure/webform/manage/contact/handlers
-
-add hubspot handler.
-
-- To view your form submissions click on the link - https://app.hubspot.com/l/forms
 
 
