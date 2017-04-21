@@ -46,6 +46,10 @@ In Drupal site:
 
 For hubspot tracking code : refer this : https://knowledge.hubspot.com/articles/KCS_Article/Reports/How-do-I-install-the-HubSpot-tracking-code-on-my-Drupal-site
 
+-Get Hubspot tracking code:
+Login to hubspot
+Click setting in the menu
+click installation vertical tab and copy the code.
 
 - For Web analytics
 1. Enable your tracking code in the configuraton
@@ -74,8 +78,3 @@ Maintainers
 ---------------------
 
 nehajyoti (Jyoti Bohra)
-
-
-
-
-
