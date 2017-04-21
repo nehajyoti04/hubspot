@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Contains \Drupal\hubspot\Form\HubspotFormSettings.
+ * Contains \Drupal\hubspot\Form\FormSettings.
  */
 
 namespace Drupal\hubspot\Form;
@@ -17,7 +17,7 @@ use Drupal\Core\Render\Element;
 use GuzzleHttp\Client;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-class HubspotFormSettings extends FormBase {
+class FormSettings extends FormBase {
 
   protected $http_client;
 
@@ -113,8 +113,6 @@ class HubspotFormSettings extends FormBase {
 
             $webform = $this->entityTypeManager->getStorage('webform')->load('test_1');
             $webform = $webform->getElementsDecoded();
-
-            $submission_storage = $this->entityTypeManager->getStorage('webform_submission');
 
             foreach ($webform as $form_key => $component) {
               if ($component['#type'] == 'addressfield' && $this->moduleHandler->moduleExists('addressfield_tokens')) {

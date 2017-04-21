@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Contains \Drupal\hubspot\Form\HubspotAdminSettings.
+ * Contains \Drupal\hubspot\Form\AdminSettings.
  */
 
 namespace Drupal\hubspot\Form;
@@ -15,11 +15,12 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\node\Entity\Node;
+use Drupal\node\NodeStorageInterface;
 use Drupal\webform\Plugin\Field\FieldType\WebformEntityReferenceItem;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
-class HubspotAdminSettings extends FormBase {
+class AdminSettings extends FormBase {
 
   /**
    * The database connection.
@@ -37,16 +38,19 @@ class HubspotAdminSettings extends FormBase {
 
   protected $entityTypeManager;
 
+  protected $nodeStorage;
+
   /**
-   * HubspotAdminSettings constructor.
+   * AdminSettings constructor.
    * @param \Drupal\Core\Database\Connection $connection
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
    */
-  function __construct(Connection $connection, ConfigFactoryInterface $config_factory, EntityTypeManager $entityTypeManager) {
+  function __construct(Connection $connection, ConfigFactoryInterface $config_factory, EntityTypeManager $entityTypeManager, NodeStorageInterface $node_storage) {
     $this->connection = $connection;
     $this->configFactory = $config_factory->getEditable('hubspot.settings');
     $this->entityTypeManager = $entityTypeManager;
+    $this->nodeStorage = $node_storage;
   }
 
   /**
@@ -56,7 +60,8 @@ class HubspotAdminSettings extends FormBase {
     return new static(
       $container->get('database'),
       $container->get('config.factory'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('entity.manager')->getStorage('node')
     );
   }
 
@@ -126,10 +131,6 @@ class HubspotAdminSettings extends FormBase {
       will be logged to the regular Drupal error log.'),
     ];
 
-    // @FIXME
-    // Could not extract the default value because it is either indeterminate, or
-    // not scalar. You'll need to provide a default value in
-    // config/install/hubspot.settings.yml and config/schema/hubspot.schema.yml.
     $form['debug']['hubspot_debug_email'] = [
       '#title' => $this->t('Debugging email'),
       '#type' => 'email',
@@ -140,6 +141,8 @@ class HubspotAdminSettings extends FormBase {
     // Mapping hubspot and webform/ webform node forms.
     $hubspot_form_description  = '';
     $hubspot_forms = _hubspot_get_forms();
+    $hubspot_field_options = [];
+    $hubspot_form_options = '';
     if (isset($hubspot_forms['error'])) {
       $hubspot_form_description =  $hubspot_forms['error'];
     }
@@ -149,7 +152,6 @@ class HubspotAdminSettings extends FormBase {
       }
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
-        $hubspot_field_options = [];
         foreach ($hubspot_forms['value'] as $hubspot_form) {
           $hubspot_form_options[$hubspot_form['guid']] = $hubspot_form['name'];
           $hubspot_field_options[$hubspot_form['guid']]['fields']['--donotmap--'] = "Do Not Map";
@@ -226,7 +228,6 @@ class HubspotAdminSettings extends FormBase {
     }
 
     // Webform node forms mapping.
-
     $form['webform_nodes'] = [
       '#title' => $this->t('Webform Nodes'),
       '#type' => 'details',
@@ -248,7 +249,7 @@ class HubspotAdminSettings extends FormBase {
         foreach ($nodes as $node) {
           $nid = $node->nid;
           $form['webform_nodes']['nid-' . $nid] = [
-            '#title' => Node::load($nid)->getTitle(),
+            '#title' => $this->nodeStorage->load($nid)->getTitle(),
             '#type' => 'details',
           ];
 
@@ -275,7 +276,7 @@ class HubspotAdminSettings extends FormBase {
                 ],
               ];
 
-              $node = Node::load($nid);
+              $node = $this->nodeStorage->load($nid);
               $webform_field_name = WebformEntityReferenceItem::getEntityWebformFieldName($node);
               $webform_id = $node->$webform_field_name->target_id;
 

@@ -2,7 +2,7 @@ hubspot.admin_settings:
   path: /admin/config/services/hubspot
   defaults:
     _title: 'HubSpot integration settings'
-    _form: \Drupal\hubspot\Form\HubspotAdminSettings
+    _form: \Drupal\hubspot\Form\AdminSettings
   requirements:
     _permission: 'administer site configuration'
 hubspot.oauth_connect:
@@ -16,7 +16,7 @@ hubspot.form_settings:
   path: '/node/{node}/webform/hubspot'
   defaults:
     _title: HubSpot
-    _form: \Drupal\hubspot\Form\HubspotFormSettings
+    _form: \Drupal\hubspot\Form\FormSettings
   requirements:
     _access: 'TRUE'
 #    ToDO ll be added proper permission later.
