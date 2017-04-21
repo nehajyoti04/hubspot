@@ -27,10 +27,25 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface {
 
-  protected $http_client;
+  /**
+   * The HTTP client to fetch the feed data with.
+   *
+   * @var \GuzzleHttp\ClientInterface
+   */
+  protected $httpClient;
 
+  /**
+   * The logger factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
   protected $loggerFactory;
 
+  /**
+   * The date formatter service.
+   *
+   * @var \Drupal\Core\Datetime\DateFormatterInterface
+   */
   protected $dateFormatter;
 
   protected $json;
@@ -59,11 +74,11 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    *   The information from the Weather service for this block.
    */
   public function __construct(array $configuration, $plugin_id,
-                              $plugin_definition, ClientInterface $http_client, LoggerChannelFactory $logger,
+                              $plugin_definition, ClientInterface $httpClient, LoggerChannelFactory $logger,
                               DateFormatter $dateFormatter, Json $json,
                               ConfigFactoryInterface $config_factory) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->http_client = $http_client;
+    $this->httpClient = $httpClient;
     $this->loggerFactory = $logger;
     $this->dateFormatter = $dateFormatter;
     $this->json = $json;
@@ -175,7 +190,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     $url = Url::fromUri($api, $options)->toString();
 
     if($this->configFactory->get('hubspot_expires_in') > REQUEST_TIME ) {
-      $result = $this->http_client->get($url);
+      $result = $this->httpClient->get($url);
 
     } else {
       $refresh = $this->hubspot_oauth_refresh();
@@ -188,7 +203,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
           ]
         ];
         $url = Url::fromUri($api, $options)->toString();
-        $result = $this->http_client->get($url);
+        $result = $this->httpClient->get($url);
 
       }
     }
@@ -214,7 +229,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
       RequestOptions::BODY => $string,
     ];
     try {
-      $response = $this->http_client->request('POST', $api, $request_options);
+      $response = $this->httpClient->request('POST', $api, $request_options);
 
       if ($response->getStatusCode() == '200') {
 

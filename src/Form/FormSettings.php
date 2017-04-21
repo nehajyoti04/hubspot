@@ -7,7 +7,6 @@
 
 namespace Drupal\hubspot\Form;
 
-
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Extension\ModuleHandler;
@@ -19,10 +18,25 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class FormSettings extends FormBase {
 
-  protected $http_client;
+  /**
+   * The HTTP client to fetch the feed data with.
+   *
+   * @var \GuzzleHttp\ClientInterface
+   */
+  protected $httpClient;
 
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
   protected $entityTypeManager;
 
+  /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
   protected $moduleHandler;
 
   /**
@@ -32,13 +46,24 @@ class FormSettings extends FormBase {
    */
   protected $database;
 
+  /**
+   * FormSettings constructor.
+   * @param \GuzzleHttp\Client $client
+   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   * @param \Drupal\Core\Extension\ModuleHandler $moduleHandler
+   * @param \Drupal\Core\Database\Connection $database
+   */
   public function __construct(Client $client, EntityTypeManager $entityTypeManager, ModuleHandler $moduleHandler, Connection $database) {
-    $this->http_client = $client;
+    $this->httpClient = $client;
     $this->entityTypeManager = $entityTypeManager;
     $this->moduleHandler = $moduleHandler;
     $this->database = $this->database;
   }
 
+  /**
+   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+   * @return static
+   */
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('http_client'),
@@ -49,7 +74,6 @@ class FormSettings extends FormBase {
   }
 
 
-
   /**
    * {@inheritdoc}
    */
@@ -57,6 +81,9 @@ class FormSettings extends FormBase {
     return 'hubspot_form_settings';
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function buildForm(array $form, FormStateInterface $form_state, $node = NULL) {
     $form = [];
 
@@ -129,7 +156,6 @@ class FormSettings extends FormBase {
               }
 
               elseif($component['#type'] !== 'markup') {
-
                 $form[$key][$form_key] = [
                   '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
                   '#type' => 'select',
@@ -151,6 +177,9 @@ class FormSettings extends FormBase {
     return $form;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
     $this->database->delete('hubspot')->condition('id', $form_state->getValue(['nid']))->execute();
@@ -166,7 +195,6 @@ class FormSettings extends FormBase {
         $this->database->insert('hubspot')->fields($fields)->execute();
       }
     }
-
     drupal_set_message($this->t('The configuration options have been saved.'));
   }
 

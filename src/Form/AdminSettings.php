@@ -14,7 +14,6 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
-use Drupal\node\Entity\Node;
 use Drupal\node\NodeStorageInterface;
 use Drupal\webform\Plugin\Field\FieldType\WebformEntityReferenceItem;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -36,8 +35,18 @@ class AdminSettings extends FormBase {
    */
   protected $configFactory;
 
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
   protected $entityTypeManager;
 
+  /**
+   * The node storage.
+   *
+   * @var \Drupal\Core\Entity\EntityStorageInterface
+   */
   protected $nodeStorage;
 
   /**
@@ -73,7 +82,10 @@ class AdminSettings extends FormBase {
     return 'hubspot_admin_settings';
   }
 
-  public function buildForm(array $form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  /**
+   * {@inheritdoc}
+   */
+  public function buildForm(array $form, FormStateInterface $form_state) {
     $form = [];
 
     $form['additional_settings'] = ['#type' => 'vertical_tabs'];
@@ -117,6 +129,7 @@ class AdminSettings extends FormBase {
       here.'),
     ];
 
+    // Debugging section.
     $form['debug'] = [
       '#title' => $this->t('Debugging'),
       '#type' => 'details',
@@ -300,6 +313,7 @@ class AdminSettings extends FormBase {
       }
     }
 
+    // Tracking code vertical tab.
     $form['tracking_code'] = [
       '#title' => $this->t('Tracking Code'),
       '#type' => 'details',
@@ -314,7 +328,6 @@ class AdminSettings extends FormBase {
       tracking will be inserted in all/specified pages of the site as configured
        in hubspot account.'),
     ];
-
 
     $form['submit'] = [
       '#type' => 'submit',
@@ -410,10 +423,7 @@ class AdminSettings extends FormBase {
           }
         }
       }
-
-
     }
-
 
     drupal_set_message($this->t('The configuration options have been saved.'));
   }

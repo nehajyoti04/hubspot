@@ -9,7 +9,7 @@ hubspot.oauth_connect:
   path: /hubspot/oauth
   defaults:
     _title: 'HubSpot OAuth redirect'
-    _controller: '\Drupal\hubspot\Controller\DefaultController::hubspot_oauth_connect'
+    _controller: '\Drupal\hubspot\Controller\Controller::hubspot_oauth_connect'
   requirements:
     _permission: 'administer site configuration'
 hubspot.form_settings:

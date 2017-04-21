@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- * Contains \Drupal\hubspot\Controller\DefaultController.
+ * Contains \Drupal\hubspot\Controller\Controller.
  */
 
 namespace Drupal\hubspot\Controller;
@@ -15,7 +15,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 /**
  * Default controller for the hubspot module.
  */
-class DefaultController extends ControllerBase {
+class Controller extends ControllerBase {
+
   /**
    * The configuration factory.
    *
@@ -24,7 +25,7 @@ class DefaultController extends ControllerBase {
   protected $config;
 
   /**
-   * DefaultController constructor.
+   * Controller constructor.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    */
   function __construct(ConfigFactoryInterface $config_factory) {
@@ -40,7 +41,12 @@ class DefaultController extends ControllerBase {
     );
   }
 
-
+  /**
+   * Gets api key values like access_token, refresh token, expire_in and saves
+   * it in config.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   */
   public function hubspot_oauth_connect() {
     if (!empty($_GET['access_token']) && !empty($_GET['refresh_token']) && !empty($_GET['expires_in'])) {
       drupal_set_message($this->t('Successfully authenticated with Hubspot.'), 'status', FALSE);

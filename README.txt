@@ -77,17 +77,5 @@ nehajyoti (Jyoti Bohra)
 
 
 
-Requirements
-------------
-
-
-
-Installation Information
--------------------
-
-
----
-
-
 
 

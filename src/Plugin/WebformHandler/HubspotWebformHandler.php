@@ -2,12 +2,15 @@
 
 namespace Drupal\hubspot\Plugin\WebformHandler;
 
-use Drupal;
 use Drupal\Component\Serialization\Json;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Logger\LoggerChannelFactory;
+use Drupal\Core\Mail\MailManager;
 use Drupal\Core\Url;
-use Drupal\node\Entity\Node;
+use Drupal\node\NodeStorageInterface;
 use Drupal\webform\WebformHandlerBase;
 use Drupal\webform\WebformSubmissionInterface;
 use GuzzleHttp\ClientInterface;
@@ -38,11 +41,52 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected $httpClient;
 
   /**
+   * The node storage.
+   *
+   * @var \Drupal\Core\Entity\EntityStorageInterface
+   */
+  protected $nodeStorage;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $connection;
+
+  /**
+   * Stores the configuration factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * The logger factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
+  protected $loggerFactory;
+
+  /**
+   * The mail manager
+   *
+   * @var \Drupal\Core\Mail\MailManagerInterface
+   */
+  protected $mailManager;
+
+  /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ClientInterface $http_client) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ClientInterface $httpClient, NodeStorageInterface $node_storage, Connection $connection,
+                              ConfigFactoryInterface $config_factory, LoggerChannelFactory $loggerChannelFactory, MailManager $mailManager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $logger, $entity_type_manager);
-    $this->httpClient = $http_client;
+    $this->httpClient = $httpClient;
+    $this->nodeStorage = $node_storage;
+    $this->connection = $connection;
+    $this->configFactory = $config_factory->getEditable('hubspot.settings');
+    $this->loggerFactory = $loggerChannelFactory;
+    $this->mailManager = $mailManager;
   }
 
   /**
@@ -55,7 +99,12 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $plugin_definition,
       $container->get('logger.factory')->get('webform.remote_post'),
       $container->get('entity_type.manager'),
-      $container->get('http_client')
+      $container->get('http_client'),
+      $container->get('entity.manager')->getStorage('node'),
+      $container->get('database'),
+      $container->get('config.factory'),
+      $container->get('logger.factory'),
+      $container->get('plugin.manager.mail')
     );
   }
 
@@ -99,24 +148,31 @@ class HubspotWebformHandler extends WebformHandlerBase {
     if($entity_type == 'node') {
       // Case 1: of node forms.
       $entity_id = $request_post_data['entity_id'];
-      $node = Node::load($entity_id);
+
+      $node = $this->nodeStorage->load($entity_id);
+
+      // Node form title of some webform type.
       $form_title = $node->getTitle();
+      // Node id i.e entity id is mapped with hubspot form id in hubspot table.
       $id = $entity_id;
 
-      $page_url = \Drupal\Core\Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
+      $page_url = Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
     } else {
       // Case 2: Webform it self.
+      // Webform id is mapped with hubspot form id in hubspot table.
       $id = $this->getWebform()->getOriginalId();
+
+      // Webform title.
       $form_title = $this->getWebform()->get('title');
-      $page_url = \Drupal\Core\Url::fromUserInput('/form/' . $id, array('absolute' => TRUE))->toString();
+      $page_url = Url::fromUserInput('/form/' . $id, array('absolute' => TRUE))->toString();
     }
-    $form_guid =  \Drupal::database()->select('hubspot', 'h')
+    $form_guid =  $this->connection->select('hubspot', 'h')
       ->fields('h', ['hubspot_guid'])
       ->condition('id', $id)
       ->range(0,1)
       ->execute()->fetchField();
 
-    $portal_id = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
+    $portal_id = $this->configFactory->get('hubspot_portalid');
 
     $api = 'https://forms.hubspot.com/uploads/form/v2/' . $portal_id . '/' . $form_guid;
 
@@ -132,7 +188,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
       $hs_context = array(
         'hutk' => isset($cookie) ? $cookie : '',
-        'ipAddress' => Drupal::request()->getClientIp(),
+        'ipAddress' => \Drupal::request()->getClientIp(),
         'pageName' => $form_title,
         'pageUrl' => $page_url,
       );
@@ -146,27 +202,26 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $response = $this->httpClient->request('POST', $url, $request_options);
 
       // Debugging information.
-      $mailManager = \Drupal::service('plugin.manager.mail');
       $hubspot_url = 'https://app.hubspot.com';
-      $to = \Drupal::config('hubspot.settings')->get('hubspot_debug_email');
+      $to = $this->configFactory->get('hubspot_debug_email');
       $default_language = \Drupal::languageManager()->getDefaultLanguage()->getId();
-      $from = \Drupal::config('hubspot.settings')->get('site_mail');
+      $from = $this->configFactory->get('site_mail');
       $data = (string) $response->getBody();
 
       if ($response->getStatusCode() == '204') {
 
-        \Drupal::logger('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
+        $this->loggerFactory->get('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
           '@msg' => strip_tags($data),
           '%form' => $form_title,
         ));
       }
       elseif (!empty($response['Error'])) {
-        \Drupal::logger('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
+        $this->loggerFactory->get('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
           '@error' => $response['Error'],
           '%form' => $form_title));
 
-        if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
-          $mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
+        if ($this->configFactory->get('hubspot_debug_on')) {
+          $this->mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
             'errormsg' => $response['Error'],
             'hubspot_url' => $hubspot_url,
             'node_title' => $form_title,
@@ -175,12 +230,12 @@ class HubspotWebformHandler extends WebformHandlerBase {
         }
       }
       else {
-        \Drupal::logger('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', array(
+        $this->loggerFactory->get('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', array(
           '@error' => $data,
           '%form' => $form_title));
 
-        if (\Drupal::config('hubspot.settings')->get('hubspot_debug_on')) {
-          $mailManager->mail('hubspot', 'hub_error', $to, $default_language, array(
+        if ($this->configFactory->get('hubspot_debug_on')) {
+          $this->mailManager->mail('hubspot', 'hub_error', $to, $default_language, array(
             'errormsg' => $data,
             'hubspot_url' => $hubspot_url,
             'node_title' => $form_title,
