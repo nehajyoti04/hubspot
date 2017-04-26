@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\hubspot\Form\AdminSettings.
- */
-
 namespace Drupal\hubspot\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;

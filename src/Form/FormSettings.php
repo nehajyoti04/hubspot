@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\hubspot\Form\FormSettings.
- */
-
 namespace Drupal\hubspot\Form;
 
 use Drupal\Core\Database\Connection;

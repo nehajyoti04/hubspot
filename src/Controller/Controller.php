@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\hubspot\Controller\Controller.
- */
 
 namespace Drupal\hubspot\Controller;
 
