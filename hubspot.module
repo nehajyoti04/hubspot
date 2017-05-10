@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Sends Webform results to HubSpot's Forms API.
@@ -7,10 +8,6 @@
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Url;
 use GuzzleHttp\Exception\RequestException;
-
-define('HUBSPOT_CLIENT_ID', '734f89bf-1b88-11e1-829a-3b413536dd4c');
-define('HUBSPOT_SCOPE', 'leads-rw contacts-rw offline');
-
 
 /**
  * Implements hook_help().
@@ -52,7 +49,6 @@ function hubspot_help($route_name) {
   return $output;
 }
 
-
 /**
  * Returns the default value for the given arguments.
  */
@@ -67,8 +63,6 @@ function _hubspot_default_value($id, $hubspot_guid = NULL, $webform_field = NULL
       ':webform_field' => $webform_field,
     ))->fetchField();
   }
-
-
 }
 
 /**
@@ -119,7 +113,7 @@ function hubspot_mail($key, &$message, $params) {
   $message['body'][] = t('Error message: @message', array('@message' => $params['errormsg']));
   $message['body'][] = t('HubSpot POST URL: @url', array('@url' => $params['hubspot_url']));
   $message['body'][] = t('To adjust the debugging settings, visit @url', array(
-    '@url' => Url::fromRoute('hubspot.admin_settings')->toString()
+    '@url' => Url::fromRoute('hubspot.admin_settings')->toString(),
   ));
 }
 
@@ -128,13 +122,15 @@ function hubspot_mail($key, &$message, $params) {
  */
 function hubspot_page_attachments(&$page) {
   // If tracking code is enabled then Attach the library.
-  if(\Drupal::config('hubspot.settings')->get('tracking_code_on')) {
+  if (\Drupal::config('hubspot.settings')->get('tracking_code_on')) {
     $page['#attached']['library'][] = 'hubspot/hubspot.code_tracking';
   }
 }
 
 /**
- * @return array
+ * Implements hook_library_info_build().
+ *
+ * Creates library info with dynamic script file name.
  */
 function hubspot_library_info_build() {
   $portal_id = \Drupal::config('hubspot.settings')->get('hubspot_portalid');
@@ -143,18 +139,20 @@ function hubspot_library_info_build() {
   $libraries['hubspot.code_tracking'] = [
     'dependencies' => [
       'core/jquery',
-      'core/drupalSettings'
+      'core/drupalSettings',
     ],
   ];
 
   $libraries['hubspot.code_tracking'] += [
     'js' => [
-      'https://js.hs-scripts.com/' .$portal_id. '.js' => [
+      'https://js.hs-scripts.com/' . $portal_id . '.js' => [
         'type' => 'external',
-        'attributes' =>  [
-          'id' =>  "hs-script-loader", 'defer' => true, 'async' => true
-        ]
-      ]
+        'attributes' => [
+          'id' => "hs-script-loader",
+          'defer' => TRUE,
+          'async' => TRUE,
+        ],
+      ],
     ],
   ];
   return $libraries;

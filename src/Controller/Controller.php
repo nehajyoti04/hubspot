@@ -22,9 +22,8 @@ class Controller extends ControllerBase {
 
   /**
    * Controller constructor.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    */
-  function __construct(ConfigFactoryInterface $config_factory) {
+  public function __construct(ConfigFactoryInterface $config_factory) {
     $this->config = $config_factory->getEditable('hubspot.settings');
   }
 
@@ -38,12 +37,13 @@ class Controller extends ControllerBase {
   }
 
   /**
-   * Gets api key values like access_token, refresh token, expire_in and saves
-   * it in config.
+   * Gets response data and saves it in config.
    *
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   Returns Hubspot Connection Response(api key values like access_token,
+   *   refresh token, expire_in).
    */
-  public function hubspot_oauth_connect() {
+  public function hubspotOauthConnect() {
     if (!empty($_GET['access_token']) && !empty($_GET['refresh_token']) && !empty($_GET['expires_in'])) {
       drupal_set_message($this->t('Successfully authenticated with Hubspot.'), 'status', FALSE);
 

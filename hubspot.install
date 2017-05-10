@@ -1,7 +1,9 @@
 <?php
+
 /**
  * @file
  * Installation file for hubspot.
+ *
  */
 use Drupal\Core\Url;
 

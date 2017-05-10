@@ -12,6 +12,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Url;
+use Drupal\hubspot\HubspotInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
@@ -48,6 +49,11 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   protected $dateFormatter;
 
+  /**
+   * Json Service.
+   *
+   * @var \Drupal\Component\Serialization\Json
+   */
   protected $json;
 
   /**
@@ -57,9 +63,8 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   protected $configFactory;
 
-
   /**
-   * Constructs a Drupal\Component\Plugin\PluginBase object.
+   * HubspotBlock constructor.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -67,16 +72,18 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Utility\Token $token
-   *   The token service.
-   *
-   * @var string $weatherservice
-   *   The information from the Weather service for this block.
+   * @param \GuzzleHttp\ClientInterface $httpClient
+   *   The HTTP client used to fetch remote definitions.
+   * @param \Drupal\Core\Logger\LoggerChannelFactory $logger
+   *   Defines a factory for logging channels.
+   * @param \Drupal\Core\Datetime\DateFormatter $dateFormatter
+   *   The date formatter service.
+   * @param \Drupal\Component\Serialization\Json $json
+   *   Default serialization for JSON.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory service.
    */
-  public function __construct(array $configuration, $plugin_id,
-                              $plugin_definition, ClientInterface $httpClient, LoggerChannelFactory $logger,
-                              DateFormatter $dateFormatter, Json $json,
-                              ConfigFactoryInterface $config_factory) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ClientInterface $httpClient, LoggerChannelFactory $logger, DateFormatter $dateFormatter, Json $json, ConfigFactoryInterface $config_factory) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->httpClient = $httpClient;
     $this->loggerFactory = $logger;
@@ -118,43 +125,46 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    */
   public function build() {
 
-    $leads = $this->hubspot_get_recent();
+    $leads = $this->hubspotGetRecent();
 
-    // This part of the HubSpot API returns HTTP error codes on failure, with no message
+    // This part of the HubSpot API returns HTTP error codes on failure, with
+    // no message.
     if (!empty($leads['Error']) || $leads['HTTPCode'] != 200) {
       $output = $this->t('An error occurred when fetching the HubSpot leads data: @error', array(
         '@error' => !empty($leads['Error']) ? $leads['Error'] : $leads['HTTPCode'],
       ));
 
-      return array(
+      return [
         '#type' => 'markup',
         '#markup' => $output,
-      );
+      ];
 
     }
     elseif (empty($leads['Data'])) {
       $output = $this->t('No leads to show.');
-      return array(
+      return [
         '#type' => 'markup',
         '#markup' => $output,
-      );
+      ];
     }
 
     $items = array();
 
     foreach ($leads['Data']['contacts'] as $lead) {
       $url = Url::fromUri($lead['profile-url']);
-      $items[] = ['#markup' => Link::fromTextAndUrl($lead['properties']['firstname']['value'] . ' ' .
+      $items[] = [
+        '#markup' => Link::fromTextAndUrl($lead['properties']['firstname']['value'] . ' ' .
           $lead['properties']['lastname']['value'], $url)->toString() . ' ' . $this->t('(@time ago)',
-          array(
-            '@time' => $this->dateFormatter->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000))
-          )
-        )];
+          [
+            '@time' => $this->dateFormatter->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000)),
+          ]
+        ),
+      ];
     }
 
     $build = [
       '#theme' => 'item_list',
-      '#items' => $items
+      '#items' => $items,
     ];
 
     return $build;
@@ -171,12 +181,12 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    *
    * @return array
    */
-  public function hubspot_get_recent($n = 5) {
+  public function hubspotGetRecent($n = 5) {
     $access_token = $this->configFactory->get('hubspot_access_token');
     $n = intval($n);
 
     if (empty($access_token)) {
-      return array('Error' => $this->t('This site is not connected to a HubSpot Account.'));
+      return ['Error' => $this->t('This site is not connected to a HubSpot Account.')];
     }
 
     $api = 'https://api.hubapi.com/contacts/v1/lists/recently_updated/contacts/recent';
@@ -184,48 +194,47 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     $options = [
       'query' => [
         'access_token' => $access_token,
-        'count' => $n
-      ]
+        'count' => $n,
+      ],
     ];
     $url = Url::fromUri($api, $options)->toString();
 
-    if($this->configFactory->get('hubspot_expires_in') > REQUEST_TIME ) {
+    if ($this->configFactory->get('hubspot_expires_in') > REQUEST_TIME) {
       $result = $this->httpClient->get($url);
-
-    } else {
-      $refresh = $this->hubspot_oauth_refresh();
+    }
+    else {
+      $refresh = $this->hubspotOauthRefresh();
       if ($refresh) {
         $access_token = $this->configFactory->get('hubspot_access_token');
         $options = [
           'query' => [
             'access_token' => $access_token,
-            'count' => $n
-          ]
+            'count' => $n,
+          ],
         ];
         $url = Url::fromUri($api, $options)->toString();
         $result = $this->httpClient->get($url);
 
       }
     }
-    return array(
-      'Data' => json_decode($result->getBody(), true),
+    return [
+      'Data' => json_decode($result->getBody(), TRUE),
       'Error' => isset($result->error) ? $result->error : '',
-      'HTTPCode' => $result->getStatusCode()
-    );
+      'HTTPCode' => $result->getStatusCode(),
+    ];
   }
-
 
   /**
    * Refreshes HubSpot OAuth Access Token when expired.
    */
-  public function hubspot_oauth_refresh() {
+  public function hubspotOauthRefresh() {
 
     $refresh_token = $this->configFactory->get('hubspot_refresh_token');
     $api = 'https://api.hubapi.com/auth/v1/refresh';
-    $string = 'refresh_token='.$refresh_token.'&client_id='.HUBSPOT_CLIENT_ID.'&grant_type=refresh_token';
+    $string = 'refresh_token=' . $refresh_token . '&client_id=' . HubspotInterface::HUBSPOT_CLIENT_ID . '&grant_type=refresh_token';
     $request_options = [
       RequestOptions::HEADERS => ['Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8'],
-//      RequestOptions::BODY => Json::encode($request_body),
+      // @TODO encode string paramters using json::encode.
       RequestOptions::BODY => $string,
     ];
     try {
@@ -254,10 +263,11 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     drupal_set_message($this->t('Refresh token failed with Error Code "%code: %status_message". Reconnect to your Hubspot
       account.'), 'error', FALSE);
     $this->loggerFactory->get('hubspot')->notice('Refresh token failed with Error Code "%code: %status_message". Visit the Hubspot module
-      settings page and reconnect to your Hubspot account.', array(
-      '%code' => $response->getStatusCode(),
-      '%status_message' => $response['status_message'],
-    ));
+      settings page and reconnect to your Hubspot account.', [
+        '%code' => $response->getStatusCode(),
+        '%status_message' => $response['status_message'],
+      ]
+    );
 
     return FALSE;
 

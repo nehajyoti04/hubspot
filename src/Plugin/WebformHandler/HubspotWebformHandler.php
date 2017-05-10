@@ -69,7 +69,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected $loggerFactory;
 
   /**
-   * The mail manager
+   * The mail manager.
    *
    * @var \Drupal\Core\Mail\MailManagerInterface
    */
@@ -78,8 +78,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ClientInterface $httpClient, NodeStorageInterface $node_storage, Connection $connection,
-                              ConfigFactoryInterface $config_factory, LoggerChannelFactory $loggerChannelFactory, MailManager $mailManager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, LoggerInterface $logger, EntityTypeManagerInterface $entity_type_manager, ClientInterface $httpClient, NodeStorageInterface $node_storage, Connection $connection, ConfigFactoryInterface $config_factory, LoggerChannelFactory $loggerChannelFactory, MailManager $mailManager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $logger, $entity_type_manager);
     $this->httpClient = $httpClient;
     $this->nodeStorage = $node_storage;
@@ -120,7 +119,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::submitConfigurationForm($form, $form_state);
-
   }
 
   /**
@@ -129,8 +127,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
   public function postSave(WebformSubmissionInterface $webform_submission, $update = TRUE) {
     $operation = ($update) ? 'update' : 'insert';
     $this->remotePost($operation, $webform_submission);
-
-
   }
 
   /**
@@ -145,7 +141,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
   protected function remotePost($operation, WebformSubmissionInterface $webform_submission) {
     $request_post_data = $this->getPostData($operation, $webform_submission);
     $entity_type = $request_post_data['entity_type'];
-    if($entity_type == 'node') {
+    if ($entity_type == 'node') {
       // Case 1: of node forms.
       $entity_id = $request_post_data['entity_id'];
 
@@ -156,20 +152,21 @@ class HubspotWebformHandler extends WebformHandlerBase {
       // Node id i.e entity id is mapped with hubspot form id in hubspot table.
       $id = $entity_id;
 
-      $page_url = Url::fromUserInput($request_post_data['uri'], array('absolute' => TRUE))->toString();
-    } else {
+      $page_url = Url::fromUserInput($request_post_data['uri'], ['absolute' => TRUE])->toString();
+    }
+    else {
       // Case 2: Webform it self.
       // Webform id is mapped with hubspot form id in hubspot table.
       $id = $this->getWebform()->getOriginalId();
 
       // Webform title.
       $form_title = $this->getWebform()->get('title');
-      $page_url = Url::fromUserInput('/form/' . $id, array('absolute' => TRUE))->toString();
+      $page_url = Url::fromUserInput('/form/' . $id, ['absolute' => TRUE])->toString();
     }
-    $form_guid =  $this->connection->select('hubspot', 'h')
+    $form_guid = $this->connection->select('hubspot', 'h')
       ->fields('h', ['hubspot_guid'])
       ->condition('id', $id)
-      ->range(0,1)
+      ->range(0, 1)
       ->execute()->fetchField();
 
     $portal_id = $this->configFactory->get('hubspot_portalid');
@@ -186,15 +183,15 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     try {
 
-      $hs_context = array(
+      $hs_context = [
         'hutk' => isset($cookie) ? $cookie : '',
         'ipAddress' => \Drupal::request()->getClientIp(),
         'pageName' => $form_title,
         'pageUrl' => $page_url,
-      );
+      ];
 
       $fields = $request_post_data;
-      $string = 'hs_context=' . Json::encode($hs_context) . '&'. Json::encode($fields);
+      $string = 'hs_context=' . Json::encode($hs_context) . '&' . Json::encode($fields);
       $request_options = [
         RequestOptions::HEADERS => ['Content-Type' => 'application/x-www-form-urlencoded'],
         RequestOptions::BODY => $string,
@@ -209,37 +206,40 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $data = (string) $response->getBody();
 
       if ($response->getStatusCode() == '204') {
-
-        $this->loggerFactory->get('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', array(
+        $this->loggerFactory->get('hubspot')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', [
           '@msg' => strip_tags($data),
           '%form' => $form_title,
-        ));
+        ]
+        );
       }
       elseif (!empty($response['Error'])) {
-        $this->loggerFactory->get('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', array(
+        $this->loggerFactory->get('hubspot')->notice('HTTP error when submitting HubSpot data from Webform "%form": @error', [
           '@error' => $response['Error'],
-          '%form' => $form_title));
+          '%form' => $form_title,
+        ]
+        );
 
         if ($this->configFactory->get('hubspot_debug_on')) {
-          $this->mailManager->mail('hubspot', 'http_error', $to, $default_language, array(
+          $this->mailManager->mail('hubspot', 'http_error', $to, $default_language, [
             'errormsg' => $response['Error'],
             'hubspot_url' => $hubspot_url,
             'node_title' => $form_title,
-          ), $from, TRUE);
-
+          ], $from, TRUE);
         }
       }
       else {
-        $this->loggerFactory->get('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', array(
+        $this->loggerFactory->get('hubspot')->notice('HubSpot error when submitting Webform "%form": @error', [
           '@error' => $data,
-          '%form' => $form_title));
+          '%form' => $form_title,
+        ]
+        );
 
         if ($this->configFactory->get('hubspot_debug_on')) {
-          $this->mailManager->mail('hubspot', 'hub_error', $to, $default_language, array(
+          $this->mailManager->mail('hubspot', 'hub_error', $to, $default_language, [
             'errormsg' => $data,
             'hubspot_url' => $hubspot_url,
             'node_title' => $form_title,
-          ), $from);
+          ], $from);
         }
       }
 

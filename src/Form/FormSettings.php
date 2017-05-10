@@ -7,10 +7,14 @@ use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Extension\ModuleHandler;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Render\Element;
 use GuzzleHttp\Client;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * Class FormSettings.
+ *
+ * @package Drupal\hubspot\Form
+ */
 class FormSettings extends FormBase {
 
   /**
@@ -43,10 +47,6 @@ class FormSettings extends FormBase {
 
   /**
    * FormSettings constructor.
-   * @param \GuzzleHttp\Client $client
-   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
-   * @param \Drupal\Core\Extension\ModuleHandler $moduleHandler
-   * @param \Drupal\Core\Database\Connection $database
    */
   public function __construct(Client $client, EntityTypeManager $entityTypeManager, ModuleHandler $moduleHandler, Connection $database) {
     $this->httpClient = $client;
@@ -56,8 +56,7 @@ class FormSettings extends FormBase {
   }
 
   /**
-   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
-   * @return static
+   * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
     return new static(
@@ -67,7 +66,6 @@ class FormSettings extends FormBase {
       $container->get('database')
     );
   }
-
 
   /**
    * {@inheritdoc}
@@ -119,17 +117,17 @@ class FormSettings extends FormBase {
         foreach ($hubspot_form_options as $key => $value) {
           if ($key != '--donotmap--') {
             $form[$key] = [
-              '#title' => $this->t('Field mappings for @field', array(
-                '@field' => $value
-              )),
+              '#title' => $this->t('Field mappings for @field', [
+                '@field' => $value,
+              ]),
               '#type' => 'details',
               '#tree' => TRUE,
               '#states' => [
                 'visible' => [
                   ':input[name="hubspot_form"]' => [
-                    'value' => $key
-                  ]
-                ]
+                    'value' => $key,
+                  ],
+                ],
               ],
             ];
 
@@ -149,8 +147,7 @@ class FormSettings extends FormBase {
                   ];
                 }
               }
-
-              elseif($component['#type'] !== 'markup') {
+              elseif ($component['#type'] !== 'markup') {
                 $form[$key][$form_key] = [
                   '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
                   '#type' => 'select',

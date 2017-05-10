@@ -7,13 +7,18 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
+use Drupal\hubspot\HubspotInterface;
 use Drupal\node\NodeStorageInterface;
 use Drupal\webform\Plugin\Field\FieldType\WebformEntityReferenceItem;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+/**
+ * Class AdminSettings.
+ *
+ * @package Drupal\hubspot\Form
+ */
 class AdminSettings extends FormBase {
 
   /**
@@ -46,11 +51,8 @@ class AdminSettings extends FormBase {
 
   /**
    * AdminSettings constructor.
-   * @param \Drupal\Core\Database\Connection $connection
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
    */
-  function __construct(Connection $connection, ConfigFactoryInterface $config_factory, EntityTypeManager $entityTypeManager, NodeStorageInterface $node_storage) {
+  public function __construct(Connection $connection, ConfigFactoryInterface $config_factory, EntityTypeManager $entityTypeManager, NodeStorageInterface $node_storage) {
     $this->connection = $connection;
     $this->configFactory = $config_factory->getEditable('hubspot.settings');
     $this->entityTypeManager = $entityTypeManager;
@@ -68,7 +70,6 @@ class AdminSettings extends FormBase {
       $container->get('entity.manager')->getStorage('node')
     );
   }
-
 
   /**
    * {@inheritdoc}
@@ -106,13 +107,13 @@ class AdminSettings extends FormBase {
       $form['settings']['hubspot_authentication'] = [
         '#value' => $this->t('Connect Hubspot Account'),
         '#type' => 'submit',
-        '#submit' => array([$this, 'hubspotOauthSubmitForm']),
+        '#submit' => [[$this, 'hubspotOauthSubmitForm']],
       ];
 
       if ($this->configFactory->get('hubspot_refresh_token')) {
         $form['settings']['hubspot_authentication']['#suffix'] = $this->t('Your Hubspot account is connected.');
         $form['settings']['hubspot_authentication']['#value'] = $this->t('Disconnect Hubspot Account');
-        $form['settings']['hubspot_authentication']['#submit'] = array([$this, 'hubspotOauthDisconnect']);
+        $form['settings']['hubspot_authentication']['#submit'] = [[$this, 'hubspotOauthDisconnect']];
       }
     }
 
@@ -147,16 +148,16 @@ class AdminSettings extends FormBase {
     ];
 
     // Mapping hubspot and webform/ webform node forms.
-    $hubspot_form_description  = '';
+    $hubspot_form_description = '';
     $hubspot_forms = _hubspot_get_forms();
     $hubspot_field_options = [];
     $hubspot_form_options = '';
     if (isset($hubspot_forms['error'])) {
-      $hubspot_form_description =  $hubspot_forms['error'];
+      $hubspot_form_description = $hubspot_forms['error'];
     }
     else {
       if (empty($hubspot_forms['value'])) {
-        $hubspot_form_description =  $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
+        $hubspot_form_description = $this->t('No HubSpot forms found. You will need to create a form on HubSpot before you can configure it here.');
       }
       else {
         $hubspot_form_options = ["--donotmap--" => "Do Not Map"];
@@ -204,15 +205,15 @@ class AdminSettings extends FormBase {
             if ($key != '--donotmap--') {
               $form['webforms'][$webform_type_id][$key] = [
                 '#title' => $this->t('Field mappings for @field', [
-                  '@field' => $value
+                  '@field' => $value,
                 ]),
                 '#type' => 'details',
                 '#states' => [
                   'visible' => [
                     ':input[name="webforms[' . $webform_type_id . '][hubspot_form]"]' => [
-                      'value' => $key
-                    ]
-                  ]
+                      'value' => $key,
+                    ],
+                  ],
                 ],
               ];
 
@@ -244,12 +245,12 @@ class AdminSettings extends FormBase {
        and can be configured to submit to the HubSpot API.(Note: Webform Nodes module needs to enabled, to create node webforms.)'),
       '#tree' => TRUE,
     ];
-    $form['webform_nodes']['#description']  = $hubspot_form_description;
+    $form['webform_nodes']['#description'] = $hubspot_form_description;
 
     if (!isset($hubspot_forms['error'])) {
       if (!empty($hubspot_forms['value'])) {
 
-        $nodes =  $this->connection->select('node', 'n')
+        $nodes = $this->connection->select('node', 'n')
           ->fields('n', ['nid'])
           ->condition('type', 'webform')
           ->execute()->fetchAll();
@@ -272,15 +273,15 @@ class AdminSettings extends FormBase {
             if ($key != '--donotmap--') {
               $form['webform_nodes']['nid-' . $nid][$key] = [
                 '#title' => $this->t('Field mappings for @field', [
-                  '@field' => $value
+                  '@field' => $value,
                 ]),
                 '#type' => 'details',
                 '#states' => [
                   'visible' => [
                     ':input[name="webform_nodes[nid-' . $nid . '][hubspot_form]"]' => [
-                      'value' => $key
-                    ]
-                  ]
+                      'value' => $key,
+                    ],
+                  ],
                 ],
               ];
 
@@ -300,7 +301,6 @@ class AdminSettings extends FormBase {
                     '#default_value' => _hubspot_default_value($nid, $key, $form_key),
                   ];
                 }
-
               }
             }
           }
@@ -333,9 +333,7 @@ class AdminSettings extends FormBase {
   }
 
   /**
-   * @param array $form
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   * @throws \Exception
+   * Submit handler of admin config form.
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->configFactory->set('hubspot_portalid', $form_state->getValue('hubspot_portalid'))
@@ -344,7 +342,6 @@ class AdminSettings extends FormBase {
       ->set('hubspot_log_code', $form_state->getValue(['hubspot_log_code']))
       ->set('tracking_code_on', $form_state->getValue(['tracking_code_on']))
       ->save();
-
 
     // Check if webform values even exist before continuing.
     if (!$form_state->getValue('webforms')) {
@@ -428,14 +425,14 @@ class AdminSettings extends FormBase {
    */
   public function hubspotOauthSubmitForm(array &$form, FormStateInterface $form_state) {
     global $base_url;
-    $options = array(
+    $options = [
       'query' => [
-        'client_id' => HUBSPOT_CLIENT_ID,
+        'client_id' => HubspotInterface::HUBSPOT_CLIENT_ID,
         'portalId' => $this->configFactory->get('hubspot_portalid'),
         'redirect_uri' => $base_url . Url::fromRoute('hubspot.oauth_connect')->toString(),
-        'scope' => HUBSPOT_SCOPE,
-      ]
-    );
+        'scope' => HubspotInterface::HUBSPOT_SCOPE,
+      ],
+    ];
     $redirect_url = Url::fromUri('https://app.hubspot.com/auth/authenticate', $options)->toString();
 
     $response = new RedirectResponse($redirect_url);
