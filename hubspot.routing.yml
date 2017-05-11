@@ -18,6 +18,4 @@ hubspot.form_settings:
     _title: HubSpot
     _form: \Drupal\hubspot\Form\FormSettings
   requirements:
-    _access: 'TRUE'
-#    ToDO ll be added proper permission later.
-#    {  }
+    _permission: 'bypass node access+access content'
