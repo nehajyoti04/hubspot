@@ -151,10 +151,12 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
     $items = array();
 
     foreach ($leads['Data']['contacts'] as $lead) {
+      $first_name = isset($lead['properties']['firstname']['value']) ? $lead['properties']['firstname']['value'] : NULL;
+      $last_name = isset($lead['properties']['lastname']['value']) ? $lead['properties']['lastname']['value'] : NULL;
       $url = Url::fromUri($lead['profile-url']);
       $items[] = [
-        '#markup' => Link::fromTextAndUrl($lead['properties']['firstname']['value'] . ' ' .
-          $lead['properties']['lastname']['value'], $url)->toString() . ' ' . $this->t('(@time ago)',
+        '#markup' => Link::fromTextAndUrl($first_name . ' ' .
+          $last_name, $url)->toString() . ' ' . $this->t('(@time ago)',
           [
             '@time' => $this->dateFormatter->formatInterval(REQUEST_TIME - floor($lead['addedAt'] / 1000)),
           ]
@@ -180,6 +182,7 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * @see http://docs.hubapi.com/wiki/Searching_Leads
    *
    * @return array
+   *   Returns array of recent hubspot leads activity.
    */
   public function hubspotGetRecent($n = 5) {
     $access_token = $this->configFactory->get('hubspot_access_token');
