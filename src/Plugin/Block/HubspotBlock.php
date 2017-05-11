@@ -112,12 +112,10 @@ class HubspotBlock extends BlockBase implements ContainerFactoryPluginInterface 
    * {@inheritdoc}
    */
   protected function blockAccess(AccountInterface $account) {
-    return AccessResult::allowed();
-    // @TODO add view recent hubspot leads Permission.
-//    if ($account->isAnonymous()) {
-//      return AccessResult::allowed();
-//    }
-//    return AccessResult::forbidden();
+    if ($account->hasPermission('view recent hubspot leads')) {
+      return AccessResult::allowed();
+    }
+    return AccessResult::forbidden();
   }
 
   /**
