@@ -135,19 +135,7 @@ class FormSettings extends FormBase {
             $webform = $webform->getElementsDecoded();
 
             foreach ($webform as $form_key => $component) {
-              if ($component['#type'] == 'addressfield' && $this->moduleHandler->moduleExists('addressfield_tokens')) {
-                $addressfield_fields = addressfield_tokens_components();
-
-                foreach ($addressfield_fields as $addressfield_key => $addressfield_value) {
-                  $form[$key][$form_key . '_' . $addressfield_key] = [
-                    '#title' => $component['#title'] . ': ' . $addressfield_value . ' (' . $component['#type'] . ')',
-                    '#type' => 'select',
-                    '#options' => $hubspot_field_options[$key]['fields'],
-                    '#default_value' => _hubspot_default_value($nid, $key, $form_key . '_' . $addressfield_key),
-                  ];
-                }
-              }
-              elseif ($component['#type'] !== 'markup') {
+              if ($component['#type'] !== 'markup') {
                 $form[$key][$form_key] = [
                   '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
                   '#type' => 'select',
